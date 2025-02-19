@@ -54,6 +54,8 @@ Homepage = "https://github.com/flint-crew/cross-bones"
 Discussions = "https://github.com/flint-crew/cross-bones/discussions"
 Changelog = "https://github.com/flint-crew/cross-bones/releases"
 
+[project.scripts]
+align_beams = "cross_bones.align_catalogues:cli"
 
 [tool.hatch]
 version.source = "vcs"
