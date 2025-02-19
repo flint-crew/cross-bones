@@ -4,10 +4,8 @@ ASKAP astrometry
 
 from __future__ import annotations
 
-import logging
-import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -23,46 +21,17 @@ from astropy.table import Table
 from numpy.typing import NDArray
 from typing_extensions import TypeAlias
 
-handler = logging.StreamHandler(sys.stdout)
-logging.getLogger().addHandler(handler)
-logger = logging.getLogger("askapmetry")
-logger.setLevel(logging.INFO)
+from cross_bones.catalogue import (
+    Catalogue,
+    Catalogues,
+    Offset,
+    load_catalogues,
+    save_catalogue_shift_positions,
+)
+from cross_bones.logging import logger
 
 Paths = tuple[Path, ...]
 MatchMatrix: TypeAlias = NDArray[int]
-
-
-@dataclass
-class Offset:
-    """Contains offsets in the RA and Dec directions in arcsec"""
-
-    ra: float = 0.0
-    """Offset in RA direction"""
-    dec: float = 0.0
-    """Offset in Dec direction"""
-
-
-@dataclass
-class Catalogue:
-    """Represent a per-beam ASKAP component catalogue"""
-
-    beam: int
-    table: Table
-    """The table loaded"""
-    path: Path
-    """Original path to the loaded catalogue"""
-    center: SkyCoord
-    """Rough beam center derived from coordinates of componetns in catalogue"""
-    fixed: bool = False
-    """Indicates whether beam has been fixed into a place"""
-    offset: Offset = field(default_factory=Offset)
-    """Per beam offsets, if known, in arcsec"""
-
-    def __repr__(self) -> str:
-        return f"Catalogue(beam={self.beam}, table={len(self.table)} sources, path={self.path}, fixed={self.fixed})"
-
-
-Catalogues = list[Catalogue]
 
 
 @dataclass
@@ -92,12 +61,12 @@ class Match:
 
 
 @dataclass
-class BeamPair:
+class CataloguePair:
     """Represents a stage in the alignment process"""
 
-    fixed_beam_idx: int
+    fixed_catalogue_idx: int
     """The idx of the catalogue that will not change"""
-    shift_beam_idx: int
+    shift_catalogue_idx: int
     """The idx of the catalogue that will be shifted"""
     matches: Match
     """The result of the cross match"""
@@ -156,99 +125,6 @@ def calculate_matches(
         err_ra=err_ra,
         err_dec=err_dec,
     )
-
-
-def _extract_beam_from_name(name: str | Path) -> int:
-    """Extract the beam number from the input file name"""
-    name = str(name.name) if isinstance(name, Path) else name
-
-    components = name.split(".")
-    beam: int | None = None
-    for component in components:
-        if "beam" in component:
-            beam = int(component.replace("beam", ""))
-            break
-    else:
-        message = f"Beam was not found in {name}"
-        raise ValueError(message)
-
-    return beam
-
-
-def load_catalogue(catalogue_path: Path) -> Catalogue:
-    """Load a beam catalogue astropy table
-
-    Args:
-        catalogue_path (Path): Path to load catalogue from
-
-    Returns:
-        Catalogue: Loaded catalogue
-    """
-    logger.info(f"Loading {catalogue_path}")
-    table = Table.read(catalogue_path)
-
-    table_mask = filter_table(table=table)
-    sub_table = table[table_mask]
-
-    center = estimate_skycoord_centre(
-        SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
-    )
-    beam = _extract_beam_from_name(name=catalogue_path.name)
-
-    return Catalogue(beam=beam, table=sub_table, path=catalogue_path, center=center)
-
-
-def load_catalogues(catalogue_paths: Paths) -> Catalogues:
-    """Load in all of the catalgues"""
-    return [
-        load_catalogue(catalogue_path=catalogue_path)
-        for catalogue_path in catalogue_paths
-    ]
-
-
-def estimate_skycoord_centre(
-    sky_positions: SkyCoord, final_frame: str = "fk5"
-) -> SkyCoord:
-    """Estimate the central position of a set of positions by taking the
-    mean of sky-coordinates in their XYZ geocentric frame. Quick approach
-    not intended for accuracy.
-
-    Args:
-        sky_positions (SkyCoord): A set of sky positions to get the rough center of
-        final_frame (str, optional): The final frame to convert the mean position to. Defaults to "fk5".
-
-    Returns:
-        SkyCoord: The rough center position
-    """
-
-    xyz_positions = sky_positions.cartesian.xyz
-    xyz_mean_position = np.mean(xyz_positions, axis=1)
-
-    return SkyCoord(*xyz_mean_position, representation_type="cartesian").transform_to(
-        final_frame
-    )
-
-
-def filter_table(table: Table) -> NDArray[Any, bool]:
-    """Filter radio components out of an aegean radio catalogue
-    based on their distance to neighbouring components and compactness.
-
-    Args:
-        table (Table): Aegean radio component catalogue
-
-    Returns:
-        np.ndarray: Boolean array of components to keep.
-    """
-    sky_coord = SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
-
-    isolation_mask = sky_coord.match_to_catalog_sky(sky_coord, nthneighbor=2)[1] > (
-        0.01 * u.deg
-    )
-
-    ratio = table["int_flux"] / table["peak_flux"]
-    ratio_mask = (ratio > 0.8) & (ratio < 1.2)
-
-    return isolation_mask & ratio_mask
 
 
 def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
@@ -356,14 +232,14 @@ def set_seed_catalogues(
     return catalogues
 
 
-def find_next_pair(catalogues: Catalogues) -> BeamPair | None:
+def find_next_pair(catalogues: Catalogues) -> CataloguePair | None:
     """Identify a pair of beams that will form a step in the deshifter
 
     Args:
         catalogues (Catalogues): Collection of beam cataloues to consider
 
     Returns:
-        BeamPair | None: The pair of beam catalogues for this step. If there are no catalogues to shift None is returned.
+        CataloguePair | None: The pair of beam catalogues for this step. If there are no catalogues to shift None is returned.
     """
 
     assert any(catalogue.fixed for catalogue in catalogues), (
@@ -371,18 +247,18 @@ def find_next_pair(catalogues: Catalogues) -> BeamPair | None:
     )
 
     # Split the catalogues into groups of deshifted and ones to shift
-    fixed_beam_idxs = [idx for idx, cata in enumerate(catalogues) if cata.fixed]
+    fixed_catalogue_idxs = [idx for idx, cata in enumerate(catalogues) if cata.fixed]
     candidate_beam_idxs = [idx for idx, cata in enumerate(catalogues) if not cata.fixed]
 
     if len(candidate_beam_idxs) == 0:
         return None
 
-    ideal_fixed_beam_idx = None
-    ideal_shift_beam_idx = None
+    ideal_fixed_catalogue_idx = None
+    ideal_shift_catalogue_idx = None
     current_best_match = None
 
-    for fixed_beam_idx in fixed_beam_idxs:
-        fixed_beam_cata = catalogues[fixed_beam_idx]
+    for fixed_catalogue_idx in fixed_catalogue_idxs:
+        fixed_beam_cata = catalogues[fixed_catalogue_idx]
 
         for candidate_beam_idx in candidate_beam_idxs:
             candidate_beam_cata = catalogues[candidate_beam_idx]
@@ -392,17 +268,19 @@ def find_next_pair(catalogues: Catalogues) -> BeamPair | None:
 
             if current_best_match is None or matches.n > current_best_match.n:
                 current_best_match = matches
-                ideal_fixed_beam_idx = fixed_beam_idx
-                ideal_shift_beam_idx = candidate_beam_idx
-                logger.debug(f"Update {ideal_fixed_beam_idx=} {ideal_shift_beam_idx=}")
+                ideal_fixed_catalogue_idx = fixed_catalogue_idx
+                ideal_shift_catalogue_idx = candidate_beam_idx
+                logger.debug(
+                    f"Update {ideal_fixed_catalogue_idx=} {ideal_shift_catalogue_idx=}"
+                )
 
-    assert ideal_fixed_beam_idx is not None
-    assert ideal_shift_beam_idx is not None
+    assert ideal_fixed_catalogue_idx is not None
+    assert ideal_shift_catalogue_idx is not None
     assert current_best_match is not None
 
-    return BeamPair(
-        fixed_beam_idx=ideal_fixed_beam_idx,
-        shift_beam_idx=ideal_shift_beam_idx,
+    return CataloguePair(
+        fixed_catalogue_idx=ideal_fixed_catalogue_idx,
+        shift_catalogue_idx=ideal_shift_catalogue_idx,
         matches=current_best_match,
     )
 
@@ -581,7 +459,7 @@ def perform_iterative_shifter(
     logger.info(f"Shifting {len(catalogues)}")
     step_statistics = []
     for step in range(len(catalogues) * passes):
-        pair_match = find_next_pair(catalogues)
+        pair_match = find_next_pair(catalogues=catalogues)
 
         # This is triggered if everything is already matched
         # should some iterative procedure be invoked
@@ -590,12 +468,12 @@ def perform_iterative_shifter(
             continue
 
         new_catalogue = add_offset_to_catalogue(
-            catalogue=catalogues[pair_match.shift_beam_idx],
+            catalogue=catalogues[pair_match.shift_catalogue_idx],
             offset=pair_match.matches.offset_mean,
         )
         new_catalogue.fixed = True
 
-        catalogues[pair_match.shift_beam_idx] = new_catalogue
+        catalogues[pair_match.shift_catalogue_idx] = new_catalogue
 
         if gather_statistics:
             total_seps = calculate_catalogue_jitter(catalogues=catalogues)
@@ -615,31 +493,6 @@ def perform_iterative_shifter(
         )
 
     return catalogues
-
-
-def save_catalogue_shift_positions(
-    catalogues: Catalogues, output_path: Path | None = None
-) -> Path:
-    from pandas import DataFrame
-
-    output_path = output_path if output_path else Path("shifts.csv")
-
-    shifts_df = DataFrame(
-        [
-            {
-                "path": catalogue.path,
-                "beam": catalogue.beam,
-                "d_ra": catalogue.offset.ra,
-                "d_dec": catalogue.offset.dec,
-            }
-            for catalogue in catalogues
-        ]
-    )
-
-    logger.info(f"Writing {output_path}")
-    shifts_df.to_csv(output_path, index=False)
-
-    return output_path
 
 
 def beam_wise_shifts(
@@ -689,7 +542,7 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Looking at per-beam shifts")
 
     parser.add_argument(
-        "paths", nargs=36, type=Path, help="The beam wise catalogues to examine"
+        "paths", nargs="+", type=Path, help="The beam wise catalogues to examine"
     )
     parser.add_argument(
         "-o", "--output-prefix", type=str, help="The prefix to base outputs onto"
