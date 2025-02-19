@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "cross-bones"
 authors = [
-  { name = "Alec Thomson", email = "alec.thomson@csiro.au" },
+  { name = "Tim Galvin"},
 ]
 description = "Cross-match By Offsetting Neighbouring Extracted Sources"
 readme = "README.md"
