@@ -1,4 +1,4 @@
-# cross-bones
+# Cross-BONES
 
 [![Actions Status][actions-badge]][actions-link]
 [![Documentation Status][rtd-badge]][rtd-link]
@@ -25,3 +25,5 @@
 [rtd-link]:                 https://cross-bones.readthedocs.io/en/latest/?badge=latest
 
 <!-- prettier-ignore-end -->
+
+Cross-match By Offsetting Neighbouring Extracted Sources
