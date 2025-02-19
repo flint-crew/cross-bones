@@ -1,4 +1,4 @@
-# Cross-BONES
+# Cross-BONES 🏴‍☠️
 
 [![Actions Status][actions-badge]][actions-link]
 [![Documentation Status][rtd-badge]][rtd-link]
@@ -26,4 +26,4 @@
 
 <!-- prettier-ignore-end -->
 
-Cross-match By Offsetting Neighbouring Extracted Sources
+🏴‍☠️ Cross-match By Offsetting Neighbouring Extracted Sources 🏴‍☠️
