@@ -375,7 +375,7 @@ def plot_iteration_step(
     """
 
     fixed_catalogue = catalogues[pair_match.fixed_catalogue_idx]
-    shift_catalogue = catalogues[pair_match.fixed_catalogue_idx]
+    shift_catalogue = catalogues[pair_match.shift_catalogue_idx]
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
     plot_astrometric_offsets(
@@ -529,6 +529,9 @@ def beam_wise_shifts(
     Returns:
         Catalogues: The catalogues that have been shifted
     """
+    if output_prefix:
+        output_parent = Path(output_prefix).parent
+        output_parent.mkdir(exist_ok=True, parents=True)
 
     logger.info(f"Will be processing {len(catalogue_paths)} catalogues")
     catalogues: Catalogues = load_catalogues(catalogue_paths=catalogue_paths)
