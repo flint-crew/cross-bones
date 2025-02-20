@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
-from typing import Any
 
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -17,7 +16,6 @@ from astropy.coordinates import (
     SkyCoord,
     search_around_sky,
 )
-from astropy.table import Table
 from numpy.typing import NDArray
 from typing_extensions import TypeAlias
 
@@ -26,38 +24,15 @@ from cross_bones.catalogue import (
     Catalogues,
     Offset,
     load_catalogues,
+    make_sky_coords,
     save_catalogue_shift_positions,
 )
 from cross_bones.logging import logger
+from cross_bones.matching import Match, calculate_matches
+from cross_bones.plotting import plot_astrometric_offsets, plot_beam_locations
 
 Paths = tuple[Path, ...]
 MatchMatrix: TypeAlias = NDArray[int]
-
-
-@dataclass
-class Match:
-    """Components around matching Catalogue 1 to Catalogue 2"""
-
-    sky_pos_1: SkyCoord
-    """Sky positions from catalogue 1"""
-    sky_pos_2: SkyCoord
-    """Sky positions from catalogue 2"""
-    matches: tuple[NDArray[Any], NDArray[Any], Any, Any]
-    """The indices of the matches as returned by ``search_around_sky``"""
-    match_1: SkyCoord
-    """The sky-coordinate of a match in catalogue 1"""
-    match_2: SkyCoord
-    """The sky-coordinate of a match in catalogue 2"""
-    n: int
-    """Number of matches"""
-    offset_mean: tuple[float, float]
-    """Mean of the offset in arcseconds in the RA and Declination directions"""
-    offset_std: tuple[float, float]
-    """Std of the offset in arcseconds in the RA and Declination directions"""
-    err_ra: NDArray[float]
-    """Difference in RA coordinates between matches"""
-    err_dec: NDArray[float]
-    """Different in Dec coordinates between matches"""
 
 
 @dataclass
@@ -80,64 +55,6 @@ class StepInfo:
     """The total separation among matched sources"""
     number_of_matches: int
     """The total number of matches"""
-
-
-def calculate_matches(
-    catalogue_1: Catalogue, catalogue_2: Catalogue, sep_limit_arcsecond: float = 9
-) -> Match:
-    """Match a pair of catalogues to identify the sources in common.
-
-    Args:
-        catalogue_1 (Catalogue): The first loaded catalogue
-        catalogue_2 (Catalogue): The second loaded catalogue
-        sep_limit_arcsecond (float, optional): The separation limit for a match, in arcseconds. Defaults to None.
-
-    Returns:
-        Match: The result of the matching
-    """
-
-    sky_pos_1 = make_sky_coords(catalogue_1)
-    sky_pos_2 = make_sky_coords(catalogue_2)
-
-    matches = search_around_sky(
-        sky_pos_1, sky_pos_2, seplimit=sep_limit_arcsecond * u.arcsec
-    )
-    match_1 = sky_pos_1[matches[0]]
-    match_2 = sky_pos_2[matches[1]]
-
-    # Extract the offsets of positions as angular offsets of the sphere
-    deltas = match_1.spherical_offsets_to(match_2)
-    err_ra = deltas[0].to(u.arcsec).value
-    err_dec = deltas[1].to(u.arcsec).value
-
-    mean_ra, mean_dec = np.mean(err_ra), np.mean(err_dec)
-    std_ra, std_dec = np.std(err_ra), np.std(err_dec)
-
-    return Match(
-        sky_pos_1=sky_pos_1,
-        sky_pos_2=sky_pos_2,
-        matches=matches,
-        match_1=match_1,
-        match_2=match_2,
-        n=len(match_2),
-        offset_mean=(float(mean_ra), float(mean_dec)),
-        offset_std=(float(std_ra), float(std_dec)),
-        err_ra=err_ra,
-        err_dec=err_dec,
-    )
-
-
-def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
-    """Create the sky-coordinates from a cataloguue table
-
-    Args:
-        table (Table | Catalogue): Loaded table or catalogue
-
-    Returns:
-        SkyCoord: Sky-positions loaded
-    """
-    table = table.table if isinstance(table, Catalogue) else table
-    return SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
 
 
 def make_catalogue_matrix(catalogues: Catalogues) -> MatchMatrix:
@@ -495,8 +412,51 @@ def perform_iterative_shifter(
     return catalogues
 
 
+def plot_top_pairs_in_matrix(
+    catalogues: Catalogues,
+    match_matrix: MatchMatrix,
+    output_prefix: str,
+    top_pairs: int = 10,
+) -> Paths:
+    logger.info(f"Plotting the top {top_pairs=} pairs")
+
+    # First, order the match matrix from the most number of
+    # matches the the fewest
+    order = np.argsort(match_matrix.flatten())[::-1]
+    unravel_order = np.unravel_index(order, match_matrix.shape)
+
+    output_paths = []
+    for idx, catalogue_pair in enumerate(zip(*unravel_order)):
+        if idx + 1 > top_pairs:
+            break
+
+        logger.info(f"Plotting {idx + 1} top pair")
+        catalogue_1 = catalogues[catalogue_pair[0]]
+        catalogue_2 = catalogues[catalogue_pair[1]]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        plot_astrometric_offsets(
+            catalogue_1=catalogue_1, catalogue_2=catalogue_2, ax=ax1
+        )
+        plot_beam_locations(
+            catalogues=catalogues,
+            catalogue_1=catalogue_1,
+            catalogue_2=catalogue_2,
+            ax=ax2,
+        )
+
+        fig.tight_layout()
+        output_path = Path(output_prefix + f"-top{idx + 1:4d}-matches.png")
+        fig.savefig(output_path)
+        output_paths.append(output_path)
+
+        plt.close(fig)
+
+    return tuple(output_paths)
+
+
 def beam_wise_shifts(
-    catalogue_paths: Paths, output_prefix: str | None = None
+    catalogue_paths: Paths, output_prefix: str | None = None, passes: int = 1
 ) -> Catalogues:
     """Load in a set of catalogues and attempt to align them
     onto an internally consistent positional reference frame
@@ -504,6 +464,7 @@ def beam_wise_shifts(
     Args:
         catalogue_paths (Paths): The set of fits component cataloges to load
         output_prefix (str | None, optional): The prefix to use for output products. If None the default names are used. Defaults to None.
+        passes (int, optional): How many rounds during convergence should be attempted. Defaults to 1.
 
     Returns:
         Catalogues: The catalogues that have been shifted
@@ -522,10 +483,18 @@ def beam_wise_shifts(
         catalogues=catalogues, plot_path=match_matrix_plot
     )
 
+    if output_prefix:
+        plot_top_pairs_in_matrix(
+            catalogues=catalogues,
+            match_matrix=match_matrix,
+            output_prefix=output_prefix,
+            top_pairs=10,
+        )
+
     catalogues = set_seed_catalogues(catalogues=catalogues, match_matrix=match_matrix)
     catalogues = perform_iterative_shifter(
         catalogues=catalogues,
-        passes=1,
+        passes=passes,
         gather_statistics=True,
         output_prefix=output_prefix,
     )
@@ -547,6 +516,12 @@ def get_parser() -> ArgumentParser:
     parser.add_argument(
         "-o", "--output-prefix", type=str, help="The prefix to base outputs onto"
     )
+    parser.add_argument(
+        "--passes",
+        type=int,
+        default=1,
+        help="Number of passes over the data should the iterative method attempt",
+    )
 
     return parser
 
@@ -556,7 +531,9 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    beam_wise_shifts(catalogue_paths=args.paths, output_prefix=args.output_prefix)
+    beam_wise_shifts(
+        catalogue_paths=args.paths, output_prefix=args.output_prefix, passes=args.passes
+    )
 
 
 if __name__ == "__main__":

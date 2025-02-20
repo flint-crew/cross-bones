@@ -47,6 +47,19 @@ class Catalogue:
 Catalogues = list[Catalogue]
 
 
+def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
+    """Create the sky-coordinates from a cataloguue table
+
+    Args:
+        table (Table | Catalogue): Loaded table or catalogue
+
+    Returns:
+        SkyCoord: Sky-positions loaded
+    """
+    table = table.table if isinstance(table, Catalogue) else table
+    return SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
+
+
 def estimate_skycoord_centre(
     sky_positions: SkyCoord, final_frame: str = "fk5"
 ) -> SkyCoord:

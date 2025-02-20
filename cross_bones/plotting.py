@@ -3,8 +3,8 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from cross_bones.align_catalogues import calculate_matches
 from cross_bones.catalogue import Catalogue, Catalogues
+from cross_bones.matching import calculate_matches
 
 
 def plot_astrometric_offsets(
