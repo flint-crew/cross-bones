@@ -353,11 +353,61 @@ def reseed_initial_fixed_catalogue(catalogues: Catalogues) -> Catalogues:
     return catalogues
 
 
+def plot_iteration_step(
+    catalogues: Catalogues,
+    new_catalogue: Catalogue,
+    pair_match: CataloguePair,
+    step: int,
+    output_prefix: str | None = None,
+) -> Path:
+    """Create a diagnostic plot intended to show how the iterative method
+    is perform. This will print the outputs of a single step.
+
+    Args:
+        catalogues (Catalogues): The catalogues being considered
+        new_catalogue (Catalogue): The new catalogue that has had the additive offsets applied
+        pair_match (CataloguePair): The pair of nominated catalogues in this iteration
+        step (int): The step of the iterative convergence.
+        output_prefix (str | None, optional): The base output path. Defaults to None.
+
+    Returns:
+        Path: The path of the figure written to file
+    """
+
+    fixed_catalogue = catalogues[pair_match.fixed_catalogue_idx]
+    shift_catalogue = catalogues[pair_match.fixed_catalogue_idx]
+
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
+    plot_astrometric_offsets(
+        catalogue_1=fixed_catalogue, catalogue_2=shift_catalogue, ax=ax1
+    )
+    plot_astrometric_offsets(
+        catalogue_1=fixed_catalogue, catalogue_2=new_catalogue, ax=ax2
+    )
+    plot_beam_locations(
+        catalogues=catalogues,
+        catalogue_1=fixed_catalogue,
+        catalogue_2=new_catalogue,
+        ax=ax3,
+    )
+
+    out_name = f"iteration-{step:04d}.png"
+    out_name = f"{output_prefix}-{out_name}" if output_prefix else out_name
+    output_path = Path(out_name)
+
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+    return output_path
+
+
 def perform_iterative_shifter(
     catalogues: Catalogues,
     passes: int = 1,
     gather_statistics: bool = True,
     output_prefix: str | None = None,
+    plot_through_iterations: bool = False,
 ) -> Catalogues:
     """Attempt to shift catalogues to a common reference frame. A seed catalogue
     is selected, then a catalogue at a time is selected and aligned. This may be
@@ -368,6 +418,7 @@ def perform_iterative_shifter(
         passes (int, optional): How many passes over all catalogues should be performed. Defaults to 1.
         gather_statistics (bool, optional): Whether statistics across the convergence should be collected. This can be time consuming as all catalogues are matched to one another. Defaults to True.
         output_prefix (str | None, optional): The prefix to attach to output products. Defaults to None.
+        plot_through_iteration (bool, optional): Create diagnostic plots throughout the iterative convergence. Defaults to False.
 
     Returns:
         Catalogues: The shifted catalogues
@@ -389,6 +440,15 @@ def perform_iterative_shifter(
             offset=pair_match.matches.offset_mean,
         )
         new_catalogue.fixed = True
+
+        if plot_through_iterations:
+            plot_iteration_step(
+                catalogues=catalogues,
+                new_catalogue=new_catalogue,
+                pair_match=pair_match,
+                step=step,
+                output_prefix=output_prefix,
+            )
 
         catalogues[pair_match.shift_catalogue_idx] = new_catalogue
 
@@ -497,6 +557,7 @@ def beam_wise_shifts(
         passes=passes,
         gather_statistics=True,
         output_prefix=output_prefix,
+        plot_through_iterations=True,
     )
 
     shift_path = (
