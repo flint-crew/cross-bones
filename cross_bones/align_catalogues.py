@@ -446,7 +446,7 @@ def plot_top_pairs_in_matrix(
         )
 
         fig.tight_layout()
-        output_path = Path(output_prefix + f"-top{idx + 1:4d}-matches.png")
+        output_path = Path(output_prefix + f"-top-{idx + 1:04d}-matches.png")
         fig.savefig(output_path)
         output_paths.append(output_path)
 

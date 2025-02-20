@@ -33,7 +33,7 @@ def plot_astrometric_offsets(
     ax.set(
         xlabel="Delta RA (arcsec)",
         ylabel="Delta Dec (arcsec)",
-        title=f"Beam 1: {catalogue_1.beam}, beam 2: {catalogue_2.beam} {len(src_matches.err_ra)} srcs",
+        title=f"Cata. 1: {catalogue_1.beam}, Cata. 2: {catalogue_2.beam} {len(src_matches.err_ra)} srcs",
         xlim=[-5, 5],
         ylim=[-5, 5],
     )
