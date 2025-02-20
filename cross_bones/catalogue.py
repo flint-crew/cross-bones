@@ -76,7 +76,7 @@ def estimate_skycoord_centre(
     """
 
     xyz_positions = sky_positions.cartesian.xyz
-    xyz_mean_position = np.mean(xyz_positions, axis=1)
+    xyz_mean_position = np.median(xyz_positions, axis=1)
 
     return SkyCoord(*xyz_mean_position, representation_type="cartesian").transform_to(
         final_frame
