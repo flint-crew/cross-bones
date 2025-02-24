@@ -32,7 +32,8 @@ dynamic = ["version"]
 dependencies = [
   "numpy>=2.0.0",
   "astropy",
-  "matplotlib"
+  "matplotlib",
+  "pandas"
 ]
 
 [project.optional-dependencies]
