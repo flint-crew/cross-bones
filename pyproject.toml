@@ -29,7 +29,12 @@ classifiers = [
   "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+  "numpy>=2.0.0",
+  "astropy",
+  "matplotlib",
+  "pandas"
+]
 
 [project.optional-dependencies]
 test = [
