@@ -516,7 +516,10 @@ def plot_top_pairs_in_matrix(
 
 
 def beam_wise_shifts(
-    catalogue_paths: Paths, output_prefix: str | None = None, passes: int = 1
+    catalogue_paths: Paths,
+    output_prefix: str | None = None,
+    passes: int = 1,
+    all_plots: bool = False,
 ) -> Catalogues:
     """Load in a set of catalogues and attempt to align them
     onto an internally consistent positional reference frame
@@ -525,6 +528,7 @@ def beam_wise_shifts(
         catalogue_paths (Paths): The set of fits component cataloges to load
         output_prefix (str | None, optional): The prefix to use for output products. If None the default names are used. Defaults to None.
         passes (int, optional): How many rounds during convergence should be attempted. Defaults to 1.
+        all_plots (bool, optional): If True all plots will be made. Otherwise only a small set of key plots are. Ignored if `output_prefix` is unset. Defaults to False.
 
     Returns:
         Catalogues: The catalogues that have been shifted
@@ -546,7 +550,7 @@ def beam_wise_shifts(
         catalogues=catalogues, plot_path=match_matrix_plot
     )
 
-    if output_prefix:
+    if output_prefix and all_plots:
         plot_top_pairs_in_matrix(
             catalogues=catalogues,
             match_matrix=match_matrix,
@@ -560,7 +564,7 @@ def beam_wise_shifts(
         passes=passes,
         gather_statistics=True,
         output_prefix=output_prefix,
-        plot_through_iterations=True,
+        plot_through_iterations=all_plots,
     )
 
     shift_path = (
@@ -586,6 +590,11 @@ def get_parser() -> ArgumentParser:
         default=1,
         help="Number of passes over the data should the iterative method attempt",
     )
+    parser.add_argument(
+        "--all-plots",
+        action="store_true",
+        help="If provided all plots will be produced. Otherwise a minimumal set will be",
+    )
 
     return parser
 
@@ -596,7 +605,10 @@ def cli() -> None:
     args = parser.parse_args()
 
     beam_wise_shifts(
-        catalogue_paths=args.paths, output_prefix=args.output_prefix, passes=args.passes
+        catalogue_paths=args.paths,
+        output_prefix=args.output_prefix,
+        passes=args.passes,
+        all_plots=args.all_plots,
     )
 
 

@@ -65,7 +65,7 @@ def calculate_matches(
     err_ra = deltas[0].to(u.arcsec).value
     err_dec = deltas[1].to(u.arcsec).value
 
-    mean_ra, mean_dec = np.mean(err_ra), np.mean(err_dec)
+    mean_ra, mean_dec = np.median(err_ra), np.mean(err_dec)
     std_ra, std_dec = np.std(err_ra), np.std(err_dec)
 
     return Match(

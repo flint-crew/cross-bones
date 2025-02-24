@@ -28,7 +28,6 @@ class Offset:
 class Catalogue:
     """Represent a per-beam ASKAP component catalogue"""
 
-    beam: int
     table: Table
     """The table loaded"""
     path: Path
@@ -39,9 +38,11 @@ class Catalogue:
     """Indicates whether beam has been fixed into a place"""
     offset: Offset = field(default_factory=Offset)
     """Per beam offsets, if known, in arcsec"""
+    idx: int | None = None
+    """Some optional identifier"""
 
     def __repr__(self) -> str:
-        return f"Catalogue(beam={self.beam}, table={len(self.table)} sources, path={self.path}, fixed={self.fixed})"
+        return f"Catalogue(idx={self.idx}, table={len(self.table)} sources, path={self.path}, fixed={self.fixed})"
 
 
 Catalogues = list[Catalogue]
@@ -105,28 +106,12 @@ def filter_table(table: Table) -> NDArray[bool]:
     return isolation_mask & ratio_mask
 
 
-def _extract_beam_from_name(name: str | Path) -> int:
-    """Extract the beam number from the input file name"""
-    name = str(name.name) if isinstance(name, Path) else name
-
-    components = name.split(".")
-    beam: int | None = None
-    for component in components:
-        if "beam" in component:
-            beam = int(component.replace("beam", ""))
-            break
-    else:
-        message = f"Beam was not found in {name}"
-        raise ValueError(message)
-
-    return beam
-
-
-def load_catalogue(catalogue_path: Path) -> Catalogue:
+def load_catalogue(catalogue_path: Path, idx: int | None = None) -> Catalogue:
     """Load a beam catalogue astropy table
 
     Args:
         catalogue_path (Path): Path to load catalogue from
+        idx (int | None, optional): Some optional identifier added to Catalogue. Defaults to None.
 
     Returns:
         Catalogue: Loaded catalogue
@@ -140,16 +125,15 @@ def load_catalogue(catalogue_path: Path) -> Catalogue:
     center = estimate_skycoord_centre(
         SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
     )
-    beam = _extract_beam_from_name(name=catalogue_path.name)
 
-    return Catalogue(beam=beam, table=sub_table, path=catalogue_path, center=center)
+    return Catalogue(table=sub_table, path=catalogue_path, center=center, idx=idx)
 
 
 def load_catalogues(catalogue_paths: Paths) -> Catalogues:
     """Load in all of the catalgues"""
     return [
-        load_catalogue(catalogue_path=catalogue_path)
-        for catalogue_path in catalogue_paths
+        load_catalogue(catalogue_path=catalogue_path, idx=idx)
+        for idx, catalogue_path in enumerate(catalogue_paths)
     ]
 
 
@@ -164,7 +148,6 @@ def save_catalogue_shift_positions(
         [
             {
                 "path": catalogue.path,
-                "beam": catalogue.beam,
                 "d_ra": catalogue.offset.ra,
                 "d_dec": catalogue.offset.dec,
             }
