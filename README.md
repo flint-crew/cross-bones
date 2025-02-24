@@ -27,3 +27,22 @@
 <!-- prettier-ignore-end -->
 
 🏴‍☠️ Cross-match By Offsetting Neighbouring Extracted Sources 🏴‍☠️
+
+Attempt to align catalogues of radio sources onto a self-consistent grid. It
+implements a fairly simple iterative procedure that aims to reduce separations
+between sources in common between pairs of catalogues.
+
+```
+usage: align_catalogues [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
+
+Looking at per-beam shifts
+
+positional arguments:
+  paths                 The beam wise catalogues to examine
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+                        The prefix to base outputs onto
+  --passes PASSES       Number of passes over the data should the iterative method attempt
+```
