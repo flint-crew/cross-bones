@@ -266,6 +266,7 @@ def add_offset_to_catalogue(
         dec=offset[1] + new_cata.offset.dec,
     )
     new_cata.offset = summed_offsets
+    new_cata.sky_coords = new_coords
 
     return new_cata
 
@@ -570,7 +571,7 @@ def beam_wise_shifts(
     )
 
     shift_path = (
-        Path(output_prefix + "shifts.csv") if output_prefix else Path("shifts.csv")
+        Path(output_prefix + "-shifts.csv") if output_prefix else Path("shifts.csv")
     )
     save_catalogue_shift_positions(catalogues=catalogues, output_path=shift_path)
 

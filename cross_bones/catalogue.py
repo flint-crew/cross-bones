@@ -34,6 +34,8 @@ class Catalogue:
     """Original path to the loaded catalogue"""
     center: SkyCoord
     """Rough beam center derived from coordinates of componetns in catalogue"""
+    sky_coords: SkyCoord | None = None
+    """The positions from the table loaded"""
     fixed: bool = False
     """Indicates whether beam has been fixed into a place"""
     offset: Offset = field(default_factory=Offset)
@@ -57,6 +59,9 @@ def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
     Returns:
         SkyCoord: Sky-positions loaded
     """
+    if isinstance(table, Catalogue) and table.sky_coords:
+        return table.sky_coords
+
     table = table.table if isinstance(table, Catalogue) else table
     return SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
 
@@ -122,11 +127,19 @@ def load_catalogue(catalogue_path: Path, idx: int | None = None) -> Catalogue:
     table_mask = filter_table(table=table)
     sub_table = table[table_mask]
 
+    sky_coords = make_sky_coords(table=table)
+
     center = estimate_skycoord_centre(
         SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
     )
 
-    return Catalogue(table=sub_table, path=catalogue_path, center=center, idx=idx)
+    return Catalogue(
+        table=sub_table,
+        path=catalogue_path,
+        sky_coords=sky_coords,
+        center=center,
+        idx=idx,
+    )
 
 
 def load_catalogues(catalogue_paths: Paths) -> Catalogues:
