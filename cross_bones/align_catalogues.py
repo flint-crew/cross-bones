@@ -391,7 +391,7 @@ def plot_iteration_step(
         ax=ax3,
     )
 
-    out_name = f"iteration-{step:04d}.png"
+    out_name = f"-iteration-{step:04d}.png"
     out_name = f"{output_prefix}-{out_name}" if output_prefix else out_name
     output_path = Path(out_name)
 
@@ -520,6 +520,7 @@ def beam_wise_shifts(
     output_prefix: str | None = None,
     passes: int = 1,
     all_plots: bool = False,
+    report_statistics_throughout: bool = False,
 ) -> Catalogues:
     """Load in a set of catalogues and attempt to align them
     onto an internally consistent positional reference frame
@@ -529,6 +530,7 @@ def beam_wise_shifts(
         output_prefix (str | None, optional): The prefix to use for output products. If None the default names are used. Defaults to None.
         passes (int, optional): How many rounds during convergence should be attempted. Defaults to 1.
         all_plots (bool, optional): If True all plots will be made. Otherwise only a small set of key plots are. Ignored if `output_prefix` is unset. Defaults to False.
+        report_statistics_throughout (bool, optional): If True extran statistics per round are computed and presented. Defaults to False.
 
     Returns:
         Catalogues: The catalogues that have been shifted
@@ -542,7 +544,7 @@ def beam_wise_shifts(
 
     match_matrix: MatchMatrix
     match_matrix_plot = (
-        Path(output_prefix + "match_matrix.png")
+        Path(output_prefix + "-match_matrix.png")
         if output_prefix
         else Path("match_matrix.png")
     )
@@ -562,7 +564,7 @@ def beam_wise_shifts(
     catalogues = perform_iterative_shifter(
         catalogues=catalogues,
         passes=passes,
-        gather_statistics=True,
+        gather_statistics=report_statistics_throughout,
         output_prefix=output_prefix,
         plot_through_iterations=all_plots,
     )
@@ -595,6 +597,11 @@ def get_parser() -> ArgumentParser:
         action="store_true",
         help="If provided all plots will be produced. Otherwise a minimumal set will be",
     )
+    parser.add_argument(
+        "--report-statistics-throughout",
+        action="store_true",
+        help="Collect and report statistics each iteration",
+    )
 
     return parser
 
@@ -609,6 +616,7 @@ def cli() -> None:
         output_prefix=args.output_prefix,
         passes=args.passes,
         all_plots=args.all_plots,
+        report_statistics_throughout=args.report_statistics_throughout,
     )
 
 
