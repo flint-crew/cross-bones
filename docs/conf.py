@@ -4,8 +4,8 @@ import importlib.metadata
 from typing import Any
 
 project = "cross-bones"
-copyright = "2025, Alec Thomson"
-author = "Alec Thomson"
+copyright = "2025, Tim Galvin"
+author = "Tim Galvin"
 version = release = importlib.metadata.version("cross_bones")
 
 extensions = [
@@ -16,7 +16,15 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
+    "autoapi.extension",
 ]
+
+autoapi_type = "python"
+autoapi_dirs = ["../cross_bones"]
+autoapi_member_order = "groupwise"
+autoapi_keep_files = False
+autoapi_root = "autoapi"
+autoapi_add_toctree_entry = True
 
 source_suffix = [".rst", ".md"]
 exclude_patterns = [
