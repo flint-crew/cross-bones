@@ -60,7 +60,7 @@ Discussions = "https://github.com/flint-crew/cross-bones/discussions"
 Changelog = "https://github.com/flint-crew/cross-bones/releases"
 
 [project.scripts]
-align_catalogues = "cross_bones.align_catalogues:cli"
+cross_bones = "cross_bones.align_catalogues:cli"
 
 [tool.hatch]
 version.source = "vcs"
@@ -157,18 +157,3 @@ isort.required-imports = ["from __future__ import annotations"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
 "noxfile.py" = ["T20"]
-
-
-[tool.pylint]
-py-version = "3.9"
-ignore-paths = [".*/_version.py"]
-reports.output-format = "colorized"
-similarities.ignore-imports = "yes"
-messages_control.disable = [
-  "design",
-  "fixme",
-  "line-too-long",
-  "missing-module-docstring",
-  "missing-function-docstring",
-  "wrong-import-position",
-]
