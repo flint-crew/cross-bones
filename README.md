@@ -52,7 +52,7 @@ pip install cross-bones
 
 ```bash
 $ cross_bones -h
-# usage: align_catalogues [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
+# usage: cross_bones [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
 
 # Looking at per-beam shifts
 
