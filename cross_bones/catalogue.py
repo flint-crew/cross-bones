@@ -23,6 +23,21 @@ class Offset:
     dec: float = 0.0
     """Offset in Dec direction"""
 
+@dataclass
+class CatalogueKeys:
+    """Contains catalogue column names/keys. Defaults are aegean-based."""
+
+    ra: str = "ra"
+    """RA column key."""
+    dec: str = "dec"
+    """DEC column key."""
+    int_flux: str = "int_flux"
+    """Integrated flux density column key."""
+    peak_flux: str = "peak_flux"
+    """Peak flux density column key."""
+    local_rms: str = "local_rms"
+    """Local rms column key."""
+
 
 @dataclass
 class Catalogue:
@@ -42,6 +57,8 @@ class Catalogue:
     """Per beam offsets, if known, in arcsec"""
     idx: int | None = None
     """Some optional identifier"""
+    table_keys: CatalogueKeys = field(default_factory=CatalogueKeys)
+    """Column names/keys with defaults from aegean component lists."""
 
     def __repr__(self) -> str:
         return f"Catalogue(idx={self.idx}, table={len(self.table)} sources, path={self.path}, fixed={self.fixed})"
@@ -50,11 +67,17 @@ class Catalogue:
 Catalogues = list[Catalogue]
 
 
-def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
+def make_sky_coords(
+    table: Table | Catalogue,
+    ra_key: str = "ra",
+    dec_key: str = "dec"
+) -> SkyCoord:
     """Create the sky-coordinates from a cataloguue table
 
     Args:
         table (Table | Catalogue): Loaded table or catalogue
+        ra_key (str): RA column key name
+        dec_key (str): DEC column key name
 
     Returns:
         SkyCoord: Sky-positions loaded
@@ -63,7 +86,7 @@ def make_sky_coords(table: Table | Catalogue) -> SkyCoord:
         return table.sky_coords
 
     table = table.table if isinstance(table, Catalogue) else table
-    return SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
+    return SkyCoord(table[ra_key], table[dec_key], unit=(u.deg, u.deg))
 
 
 def estimate_skycoord_centre(
@@ -89,48 +112,105 @@ def estimate_skycoord_centre(
     )
 
 
-def filter_table(table: Table) -> NDArray[bool]:
-    """Filter radio components out of an aegean radio catalogue
-    based on their distance to neighbouring components and compactness.
+def filter_table(
+    table: Table,
+    min_snr: float = 10.,
+    min_iso: float = 36.,
+    table_keys: dict = {
+        "ra": "ra",
+        "dec": "dec",
+        "int_flux": "int_flux",
+        "peak_flux": "peak_flux",
+        "local_rms": "local_rms"
+    }) -> NDArray[bool]:
+    """Filter radio components out of a radio catalogue
+    based on their distance to neighbouring components, compactness,
+    and optionally minimum SNR.
 
     Args:
         table (Table): Aegean radio component catalogue
+        min_snr (float): Minimum SNR of component. Default 10.
+        min_iso (float): Minimum separation from a neighbour in arcsec. Default 30.
+        table_keys (dict): Dictionary of column keys. Defaults from aegean
 
     Returns:
         np.ndarray: Boolean array of components to keep.
     """
-    sky_coord = SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
 
-    isolation_mask = sky_coord.match_to_catalog_sky(sky_coord, nthneighbor=2)[1] > (
-        0.01 * u.deg
+    sky_coord = SkyCoord(
+        ra=table[table_keys["ra"]], 
+        dec=table[table_keys["dec"]], 
+        unit=(u.deg, u.deg)
     )
 
-    ratio = table["int_flux"] / table["peak_flux"]
+    isolation_mask = sky_coord.match_to_catalog_sky(
+        sky_coord, nthneighbor=2
+    )[1] > (min_iso * u.arcsec)
+
+    ratio = table[table_keys["int_flux"]] / table[table_keys["peak_flux"]]
     ratio_mask = (ratio > 0.8) & (ratio < 1.2)
 
-    return isolation_mask & ratio_mask
+    snr = table[table_keys["peak_flux"]] / table[table_keys["local_rms"]]
+    snr_mask = snr > min_snr
+
+    return isolation_mask & ratio_mask & snr_mask
 
 
-def load_catalogue(catalogue_path: Path, idx: int | None = None) -> Catalogue:
+def load_catalogue(
+    catalogue_path: Path, 
+    idx: int | None = None,
+    min_snr: float = 10.,
+    min_iso: float = 36.,
+    table_keys: dict = {
+        "ra": "ra",
+        "dec": "dec",
+        "int_flux": "int_flux",
+        "peak_flux": "peak_flux",
+        "local_rms": "local_rms",
+    }
+    ) -> Catalogue:
     """Load a beam catalogue astropy table
 
     Args:
         catalogue_path (Path): Path to load catalogue from
         idx (int | None, optional): Some optional identifier added to Catalogue. Defaults to None.
-
+        min_snr (float): Minimum SNR of component. Default 10.
+        min_iso (float): Minimum separation from a neighbour in arcsec. Default 30.
+        table_keys (dict): Dictionary of column keys. Defaults from aegean
+        
     Returns:
         Catalogue: Loaded catalogue
     """
     logger.info(f"Loading {catalogue_path}")
     table = Table.read(catalogue_path)
 
-    table_mask = filter_table(table=table)
+    table_mask = filter_table(
+        table=table,
+        table_keys=table_keys,
+        min_snr=min_snr,
+        min_iso=min_iso
+    )
     sub_table = table[table_mask]
 
-    sky_coords = make_sky_coords(table=table)
+    sky_coords = make_sky_coords(
+        table=table,
+        ra_key=table_keys["ra"],
+        dec_key=table_keys["dec"]
+    )
 
     center = estimate_skycoord_centre(
-        SkyCoord(table["ra"], table["dec"], unit=(u.deg, u.deg))
+        SkyCoord(
+            ra=table[table_keys["ra"]], 
+            dec=table[table_keys["dec"]], 
+            unit=(u.deg, u.deg))
+    )
+
+    catalogue_keys = CatalogueKeys(
+        ra=table_keys["ra"],
+        dec=table_keys["dec"],
+        int_flux=table_keys["int_flux"],
+        peak_flux=table_keys["peak_flux"],
+        local_rms=table_keys["local_rms"]
     )
 
     return Catalogue(
@@ -139,13 +219,30 @@ def load_catalogue(catalogue_path: Path, idx: int | None = None) -> Catalogue:
         sky_coords=sky_coords,
         center=center,
         idx=idx,
+        table_keys=catalogue_keys
     )
 
 
-def load_catalogues(catalogue_paths: Paths) -> Catalogues:
+def load_catalogues(
+    catalogue_paths: Paths,
+    min_snr: float = 10.,
+    min_iso: float = 36.,
+    table_keys: dict = {
+        "ra": "ra",
+        "dec": "dec",
+        "int_flux": "int_flux",
+        "peak_flux": "peak_flux",
+        "local_rms": "local_rms"
+    }) -> Catalogues:
     """Load in all of the catalgues"""
     return [
-        load_catalogue(catalogue_path=catalogue_path, idx=idx)
+        load_catalogue(
+            catalogue_path=catalogue_path, 
+            idx=idx,
+            table_keys=table_keys,
+            min_snr=min_snr,
+            min_iso=min_iso
+        )
         for idx, catalogue_path in enumerate(catalogue_paths)
     ]
 
