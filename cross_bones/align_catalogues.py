@@ -1,5 +1,4 @@
-"""Utility functions and helper classes to manage toying around with
-ASKAP astrometry
+"""Utility functions and helper classes to manage astrometry
 """
 
 from __future__ import annotations
