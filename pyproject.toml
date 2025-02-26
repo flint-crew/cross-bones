@@ -30,7 +30,8 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-  "numpy>=2.0.0",
+  # numpy==2.0 not required, but not sure which numpy would be lowest
+  "numpy>=1.22.4",
   "astropy",
   "matplotlib",
   "pandas"
