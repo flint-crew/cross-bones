@@ -68,8 +68,30 @@ class Catalogue:
 Catalogues = list[Catalogue]
 
 
-def _guess_table_keys() -> dict[str, str]:
+# TODO: Expand this to include other best guesses and units
+def _guess_table_keys(table: Table | None = None) -> dict[str, str]:
     """Get table keys on a best effort basis"""
+
+    known_ra_dec = (
+        ("ra", "dec"),
+        ("RAJ2000", "DEJ2000"),
+        ("RAJ2000", "DECJ2000"),
+        ("RA", "DEC"),
+    )
+
+    if table is not None:
+        logger.warn("Stub function is ignoring the table input")
+        for ra, dec in known_ra_dec:
+            if ra in table.colnames and dec in table.colnames:
+                # for the moment this is best effort. Need something more robust
+                return {
+                    "ra": ra,
+                    "dec": dec,
+                    "int_flux": "int_flux",
+                    "peak_flux": "peak_flux",
+                    "local_rms": "local_rms",
+                }
+
     return {
         "ra": "ra",
         "dec": "dec",
@@ -229,9 +251,6 @@ def load_catalogues(
     table_keys: dict[str, str] | None = None,
 ) -> Catalogues:
     """Load in all of the catalgues"""
-
-    if table_keys is None:
-        table_keys = _guess_table_keys()
 
     return [
         load_catalogue(
