@@ -148,17 +148,17 @@ def filter_table(
     """
 
     sky_coord = SkyCoord(
-        ra=table[table_keys["ra"]], dec=table[table_keys["dec"]], unit=(u.deg, u.deg)
+        ra=table[table_keys.ra], dec=table[table_keys.dec], unit=(u.deg, u.deg)
     )
 
     isolation_mask = sky_coord.match_to_catalog_sky(sky_coord, nthneighbor=2)[1] > (
         min_iso * u.arcsec
     )
 
-    ratio = table[table_keys["int_flux"]] / table[table_keys["peak_flux"]]
+    ratio = table[table_keys.int_flux] / table[table_keys.peak_flux]
     ratio_mask = (ratio > 0.8) & (ratio < 1.2)
 
-    snr = table[table_keys["peak_flux"]] / table[table_keys["local_rms"]]
+    snr = table[table_keys.peak_flux] / table[table_keys.local_rms]
     snr_mask = snr > min_snr
 
     return isolation_mask & ratio_mask & snr_mask

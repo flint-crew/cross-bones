@@ -140,7 +140,7 @@ def set_seed_catalogues(
 
     if force_idx is None:
         sum_matrix = np.sum(match_matrix, axis=0)
-        idx = np.argmax(sum_matrix)
+        idx = int(np.argmax(sum_matrix))
     else:
         idx = force_idx
         logger.debug(f"Forcing seed catalogue to be {idx}")
@@ -660,7 +660,7 @@ def get_parser() -> ArgumentParser:
         "--force_idx",
         default=None,
         type=int,
-        help="Force a specifc beam as reference. If None, beam with the most matches is chosen. Default None",
+        help="Force a specific beam as reference. If None, beam with the most matches is chosen. Default None",
     )
 
     return parser
