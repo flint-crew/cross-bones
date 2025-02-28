@@ -341,9 +341,11 @@ def unwise_shifts(
                 beam=beam
             )
 
-            all_offset_results.append(offset_results)
+            
 
             min_ra, min_dec, min_sep = find_minimum_offset_space(offset_results)
+        
+
 
         # per window?
         plot_offset_grid_space(f"SB{sbid}.{field_name}_beam{beam:02d}.offset_grid.png", 
@@ -354,6 +356,8 @@ def unwise_shifts(
         ra_offsets[beam] = min_ra
         dec_offsets[beam] = min_dec
     
+        all_offset_results.append(offset_results)
+
     plot_offsets_in_field(
         offset_results=all_offset_results, 
         fname=f"SB{sbid}.{field_name}_offset_grid.png"
