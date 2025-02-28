@@ -62,6 +62,7 @@ Changelog = "https://github.com/flint-crew/cross-bones/releases"
 
 [project.scripts]
 cross_bones = "cross_bones.align_catalogues:cli"
+unwise_cross_bones = "cross_bones.unwise_align_catalogues:cli"
 
 [tool.hatch]
 version.source = "vcs"
