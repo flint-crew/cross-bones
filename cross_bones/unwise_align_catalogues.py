@@ -40,7 +40,7 @@ from cross_bones.matching import (
     OffsetGridSpace,
     find_minimum_offset_space
 )
-from cross_bones.plotting import plot_offset_grid_space
+from cross_bones.plotting import plot_offset_grid_space, plot_offsets_in_field
 
 Paths = tuple[Path, ...]
 MatchMatrix: TypeAlias = NDArray[int]
@@ -312,6 +312,7 @@ def unwise_shifts(
     ra_offsets = np.full((len(catalogues),), np.nan)
     dec_offsets = np.full((len(catalogues),), np.nan)
 
+    all_offset_results = []
 
     for beam in range(36):
         
@@ -340,6 +341,8 @@ def unwise_shifts(
                 beam=beam
             )
 
+            all_offset_results.append(offset_results)
+
             min_ra, min_dec, min_sep = find_minimum_offset_space(offset_results)
 
         # per window?
@@ -351,6 +354,12 @@ def unwise_shifts(
         ra_offsets[beam] = min_ra
         dec_offsets[beam] = min_dec
     
+    plot_offsets_in_field(
+        offset_results=all_offset_results, 
+        fname=f"SB{sbid}.{field_name}_offset_grid.png"
+    )
+
+
     shift_table = Table([
         catalogue_paths, ra_offsets, dec_offsets
     ], names=[

@@ -107,3 +107,32 @@ def plot_offset_grid_space(fname, offset_grid_space, window):
     fig.tight_layout()
     plt.savefig(fname, dpi=150)
     plt.close()
+
+
+def plot_offsets_in_field(offset_results, fname):
+    fig, axes = plt.subplots(6,6, figsize=(10,10))
+    
+    for offset_result, ax in zip(offset_results, axes.flatten()):
+
+        minimum_point = find_minimum_offset_space(offset_result)
+
+        min_dec = minimum_point[1]
+        min_ra = minimum_point[0]
+
+
+        cim = ax.imshow(
+            offset_result.seps, extent=(-5, 5, -5, 5), origin="lower"
+        )
+
+        ax.grid()
+        ax.axhline(min_dec, ls="--", color="white")
+        ax.axvline(min_ra, ls="--", color="white")
+
+    for ax in axes.flatten():
+        ax.get_xaxis().set_ticks([])
+        ax.get_yaxis().set_ticks([])
+        ax.grid()
+    
+    fig.tight_layout()
+    plt.savefig(fname, dpi=150)
+    plt.close()
