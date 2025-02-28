@@ -21,6 +21,7 @@ from cross_bones.catalogue import (
     Catalogue,
     Catalogues,
     Offset,
+    TableKeys,
     load_catalogues,
     make_sky_coords,
     save_catalogue_shift_positions,
@@ -122,9 +123,7 @@ def make_and_plot_match_matrix(
 
 
 def set_seed_catalogues(
-    catalogues: Catalogues,
-    match_matrix: MatchMatrix,
-    force_idx: int | None = None
+    catalogues: Catalogues, match_matrix: MatchMatrix, force_idx: int | None = None
 ) -> Catalogues:
     """Select a beam to fix into place so others are matched to it.
     This is done by identifying the beam with the most matches to
@@ -141,10 +140,10 @@ def set_seed_catalogues(
 
     if force_idx is None:
         sum_matrix = np.sum(match_matrix, axis=0)
-        idx = np.argmax(sum_matrix)
+        idx = int(np.argmax(sum_matrix))
     else:
         idx = force_idx
-        logger.debug("Forcing seed catalogue to be {}".format(idx))
+        logger.debug(f"Forcing seed catalogue to be {idx}")
 
     catalogues[idx].fixed = True
 
@@ -241,8 +240,7 @@ def add_offset_to_coords_skyframeoffset(
 
 
 def add_offset_to_catalogue(
-    catalogue: Catalogue, 
-    offset: tuple[float, float]
+    catalogue: Catalogue, offset: tuple[float, float]
 ) -> Catalogue:
     """Add offsets to a catalogue and its table.
     Args:
@@ -257,7 +255,7 @@ def add_offset_to_catalogue(
     sky_coords = make_sky_coords(
         table=cata_table,
         ra_key=catalogue.table_keys.ra,
-        dec_key=catalogue.table_keys.dec
+        dec_key=catalogue.table_keys.dec,
     )
     new_coords = add_offset_to_coords_skyframeoffset(sky_coords, offset)
 
@@ -420,7 +418,7 @@ def perform_iterative_shifter(
     passes: int = 1,
     gather_statistics: bool = True,
     output_prefix: str | None = None,
-    plot_through_iterations: bool = False
+    plot_through_iterations: bool = False,
 ) -> Catalogues:
     """Attempt to shift catalogues to a common reference frame. A seed catalogue
     is selected, then a catalogue at a time is selected and aligned. This may be
@@ -450,7 +448,7 @@ def perform_iterative_shifter(
 
         new_catalogue = add_offset_to_catalogue(
             catalogue=catalogues[pair_match.shift_catalogue_idx],
-            offset=pair_match.matches.offset_mean
+            offset=pair_match.matches.offset_mean,
         )
         new_catalogue.fixed = True
 
@@ -530,20 +528,14 @@ def plot_top_pairs_in_matrix(
 
 def beam_wise_shifts(
     catalogue_paths: Paths,
+    table_keys: TableKeys,
     output_prefix: str | None = None,
     passes: int = 1,
     all_plots: bool = False,
     report_statistics_throughout: bool = False,
-    min_snr: float = 10.,
-    min_iso: float = 36.,
-    force_idx: int | None = None, 
-    table_keys: dict = {
-        "ra": "ra",
-        "dec": "dec",
-        "int_flux": "int_flux",
-        "peak_flux": "peak_flux",
-        "local_rms": "local_rms"
-    }
+    min_snr: float = 10.0,
+    min_iso: float = 36.0,
+    force_idx: int | None = None,
 ) -> Catalogues:
     """Load in a set of catalogues and attempt to align them
     onto an internally consistent positional reference frame
@@ -567,7 +559,7 @@ def beam_wise_shifts(
         catalogue_paths=catalogue_paths,
         table_keys=table_keys,
         min_iso=min_iso,
-        min_snr=min_snr
+        min_snr=min_snr,
     )
 
     match_matrix: MatchMatrix
@@ -589,16 +581,14 @@ def beam_wise_shifts(
         )
 
     catalogues = set_seed_catalogues(
-        catalogues=catalogues, 
-        match_matrix=match_matrix,
-        force_idx=force_idx
+        catalogues=catalogues, match_matrix=match_matrix, force_idx=force_idx
     )
     catalogues = perform_iterative_shifter(
         catalogues=catalogues,
         passes=passes,
         gather_statistics=report_statistics_throughout,
         output_prefix=output_prefix,
-        plot_through_iterations=all_plots
+        plot_through_iterations=all_plots,
     )
 
     shift_path = (
@@ -639,41 +629,38 @@ def get_parser() -> ArgumentParser:
         nargs=2,
         default=["ra", "dec"],
         type=str,
-        help="Column names/keys in tables for (ra, dec). [Default ('ra', 'dec')]"
+        help="Column names/keys in tables for (ra, dec). [Default ('ra', 'dec')]",
     )
     parser.add_argument(
         "--flux_keys",
         nargs=2,
         default=["int_flux", "peak_flux"],
         type=str,
-        help="Column names/keys in tables for integrated and peak flux density. [Default ('int_flux', 'peak_flux')]"
+        help="Column names/keys in tables for integrated and peak flux density. [Default ('int_flux', 'peak_flux')]",
     )
     parser.add_argument(
         "--rms_key",
         default="local_rms",
         type=str,
-        help="Local rms column name/key in tables. Default 'local_rms'"
+        help="Local rms column name/key in tables. Default 'local_rms'",
     )
 
     parser.add_argument(
-        "--snr_min",
-        default=10.,
-        type=float,
-        help="Minimum SNR of sources. Default 10"
+        "--snr_min", default=10.0, type=float, help="Minimum SNR of sources. Default 10"
     )
 
     parser.add_argument(
         "--iso_min",
-        default=36.,
+        default=36.0,
         type=float,
-        help="Minimum separation between close neighbours in arcsec. Default 36"
+        help="Minimum separation between close neighbours in arcsec. Default 36",
     )
 
     parser.add_argument(
         "--force_idx",
         default=None,
         type=int,
-        help="Force a specifc beam as reference. If None, beam with the most matches is chosen. Default None"
+        help="Force a specific beam as reference. If None, beam with the most matches is chosen. Default None",
     )
 
     return parser
@@ -684,6 +671,13 @@ def cli() -> None:
 
     args = parser.parse_args()
 
+    table_keys = TableKeys(
+        ra=args.coord_keys[0],
+        dec=args.coord_keys[1],
+        int_flux=args.flux_keys[0],
+        peak_flux=args.flux_keys[1],
+    )
+
     beam_wise_shifts(
         catalogue_paths=args.paths,
         output_prefix=args.output_prefix,
@@ -693,13 +687,7 @@ def cli() -> None:
         min_snr=args.snr_min,
         min_iso=args.iso_min,
         force_idx=args.force_idx,
-        table_keys={
-            "ra": args.coord_keys[0],
-            "dec": args.coord_keys[1],
-            "int_flux": args.flux_keys[0],
-            "peak_flux": args.flux_keys[1],
-            "local_rms": args.rms_key
-        }
+        table_keys=table_keys,
     )
 
 

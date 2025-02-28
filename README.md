@@ -6,15 +6,11 @@
 [![PyPI version][pypi-version]][pypi-link]
 [![PyPI platforms][pypi-platforms]][pypi-link]
 
-[![GitHub Discussion][github-discussions-badge]][github-discussions-link]
-
 <!-- SPHINX-START -->
 
 <!-- prettier-ignore-start -->
 [actions-badge]:            https://github.com/flint-crew/cross-bones/workflows/CI/badge.svg
 [actions-link]:             https://github.com/flint-crew/cross-bones/actions
-[github-discussions-badge]: https://img.shields.io/static/v1?label=Discussions&message=Ask&color=blue&logo=github
-[github-discussions-link]:  https://github.com/flint-crew/cross-bones/discussions
 [pypi-link]:                https://pypi.org/project/cross-bones/
 [pypi-platforms]:           https://img.shields.io/pypi/pyversions/cross-bones
 [pypi-version]:             https://img.shields.io/pypi/v/cross-bones
@@ -52,7 +48,7 @@ pip install cross-bones
 
 ```bash
 $ cross_bones -h
-# usage: align_catalogues [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
+# usage: cross_bones [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
 
 # Looking at per-beam shifts
 
@@ -64,4 +60,19 @@ $ cross_bones -h
 #   -o OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
 #                         The prefix to base outputs onto
 #   --passes PASSES       Number of passes over the data should the iterative method attempt
+```
+
+## Contributing
+
+Contributions are welcome! Please open an issue to discuss ahead of opening a pull request.
+
+### Dev tools
+
+The dev tooling can be installed by using the `dev` option flags e.g.
+
+```bash
+git clone https://github.com/flint-crew/cross-bones.git
+cd cross-bones
+pip install -e .[dev]
+pre-commit install
 ```
