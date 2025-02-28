@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from cross_bones.catalogue import Catalogue, Catalogues
-from cross_bones.matching import calculate_matches
+from cross_bones.matching import calculate_matches, find_minimum_offset_space
 
 
 def plot_astrometric_offsets(
@@ -88,3 +88,51 @@ def plot_beam_locations(
         )
 
     return ax
+
+
+def plot_offset_grid_space(fname, offset_grid_space, window):
+    min_ra, min_dec, min_sep = find_minimum_offset_space(offset_grid_space)
+
+    fig, ax = plt.subplots(1,1)
+
+    cim = ax.imshow(offset_grid_space.seps, extent=(window[0], window[1], window[2], window[3]), origin="lower")
+    
+    ax.grid()
+    ax.axhline(min_dec, ls="--", color="white")
+    ax.axvline(min_ra, ls="--", color="white")
+    
+    ax.set(xlabel="Delta RA (arcsec)", ylabel="Delta Dec (arcsec)", title=f"Beam {offset_grid_space.beam} ({min_ra:.4f} {min_dec:.4f}) arcsec {offset_grid_space.n_sources} beam srcs")
+    cbar = fig.colorbar(cim, label="Summed offsets (Degrees)")
+
+    fig.tight_layout()
+    plt.savefig(fname, dpi=150)
+    plt.close()
+
+
+def plot_offsets_in_field(offset_results, fname):
+    fig, axes = plt.subplots(6,6, figsize=(10,10))
+    
+    for offset_result, ax in zip(offset_results, axes.flatten()):
+
+        minimum_point = find_minimum_offset_space(offset_result)
+
+        min_dec = minimum_point[1]
+        min_ra = minimum_point[0]
+
+
+        cim = ax.imshow(
+            offset_result.seps, extent=(-5, 5, -5, 5), origin="lower"
+        )
+
+        ax.grid()
+        ax.axhline(min_dec, ls="--", color="white")
+        ax.axvline(min_ra, ls="--", color="white")
+
+    for ax in axes.flatten():
+        ax.get_xaxis().set_ticks([])
+        ax.get_yaxis().set_ticks([])
+        ax.grid()
+    
+    fig.tight_layout()
+    plt.savefig(fname, dpi=150)
+    plt.close()
