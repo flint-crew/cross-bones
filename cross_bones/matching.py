@@ -39,10 +39,12 @@ class Match:
 
 @dataclass
 class OffsetGridSpace:
+    """Results of the offset surface fitting"""
+
     ra_offsets: float
     dec_offsets: float
     beam: int
-    seps: np.ndarray
+    seps: NDArray[float]
     n_sources: int
 
 
@@ -91,16 +93,30 @@ def calculate_matches(
     )
 
 
-def find_minimum_offset_space(offset_space):
+def find_minimum_offset_space(
+    offset_space: OffsetGridSpace,
+) -> tuple[float, float, float]:
+    """Search the input offset grid space to find the minimum position
+
+    Args:
+        offset_space (OffsetGridSpace): Results from the brute force grid search
+
+    Returns:
+        tuple[float, float, float]: The minimum minimum delta RA and delta Dec and the corresponding separation
+    """
     minimum_sep = None
     minimum_ra = None
     minimum_dec = None
-    for (dec, ra, sep) in zip(offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()):
+    for dec, ra, sep in zip(  # type: ignore[call-overload]
+        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+    ):
         if minimum_sep is None or minimum_sep > sep:
             minimum_sep = sep
             minimum_ra = ra
             minimum_dec = dec
 
+    assert minimum_dec is not None
+    assert minimum_ra is not None
+    assert minimum_sep is not None
+
     return minimum_ra, minimum_dec, minimum_sep
-
-

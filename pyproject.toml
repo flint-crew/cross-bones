@@ -117,7 +117,7 @@ disallow_incomplete_defs = true
 
 
 [[tool.mypy.overrides]]
-module = ["astropy.*", "matplotlib.*"]
+module = ["astropy.*", "matplotlib.*", "astroquery.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
