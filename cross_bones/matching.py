@@ -95,12 +95,12 @@ def find_minimum_offset_space(offset_space):
     minimum_sep = None
     minimum_ra = None
     minimum_dec = None
-    for (dec, ra, sep) in zip(offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()):
+    for dec, ra, sep in zip(
+        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+    ):
         if minimum_sep is None or minimum_sep > sep:
             minimum_sep = sep
             minimum_ra = ra
             minimum_dec = dec
 
     return minimum_ra, minimum_dec, minimum_sep
-
-
