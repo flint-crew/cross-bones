@@ -210,7 +210,7 @@ def get_offset_space(
             results[k] = seps
             accumulated_seps[k] = v
 
-    array_decra = np.array(pair_decra)
+    array_decra = np.array(pair_decra, dtype=float)
 
     return OffsetGridSpace(
         dec_offsets=array_decra[:, 0],
@@ -279,12 +279,12 @@ def unwise_shifts(
         min_ra, min_dec = 0.0, 0.0
 
         for i in range(len(windows)):
-            window = (
-                min_ra - windows[i][0],
-                min_ra + windows[i][1],
-                min_dec - windows[i][2],
-                min_dec + windows[i][3],
-                windows[i][4],
+            window: tuple[float, float, float, float, float] = (
+                float(min_ra - windows[i][0]),
+                float(min_ra + windows[i][1]),
+                float(min_dec - windows[i][2]),
+                float(min_dec + windows[i][3]),
+                float(windows[i][4]),
             )
 
             logger.debug(f"Working on window: {window}")

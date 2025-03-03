@@ -39,10 +39,10 @@ class Match:
 
 @dataclass
 class OffsetGridSpace:
-    ra_offsets: float
-    dec_offsets: float
+    ra_offsets: NDArray[float]
+    dec_offsets: NDArray[float]
     beam: int
-    seps: np.ndarray
+    seps: NDArray[float]
     n_sources: int
 
 
@@ -91,7 +91,7 @@ def calculate_matches(
     )
 
 
-def find_minimum_offset_space(offset_space):
+def find_minimum_offset_space(offset_space: OffsetGridSpace) -> tuple[float, float, float]:
     minimum_sep = None
     minimum_ra = None
     minimum_dec = None

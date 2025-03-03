@@ -4,7 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from cross_bones.catalogue import Catalogue, Catalogues
-from cross_bones.matching import calculate_matches, find_minimum_offset_space
+from cross_bones.matching import (
+    OffsetGridSpace,
+    calculate_matches,
+    find_minimum_offset_space,
+)
 
 
 def plot_astrometric_offsets(
@@ -90,7 +94,11 @@ def plot_beam_locations(
     return ax
 
 
-def plot_offset_grid_space(fname, offset_grid_space, window):
+def plot_offset_grid_space(
+    fname: str,
+    offset_grid_space: OffsetGridSpace,
+    window: tuple[float, float, float, float, float],
+) -> None:
     min_ra, min_dec, min_sep = find_minimum_offset_space(offset_grid_space)
 
     fig, ax = plt.subplots(1, 1)
@@ -117,7 +125,7 @@ def plot_offset_grid_space(fname, offset_grid_space, window):
     plt.close()
 
 
-def plot_offsets_in_field(offset_results, fname):
+def plot_offsets_in_field(offset_results: list[OffsetGridSpace], fname: str) -> None:
     fig, axes = plt.subplots(6, 6, figsize=(10, 10))
 
     for offset_result, ax in zip(offset_results, axes.flatten()):
