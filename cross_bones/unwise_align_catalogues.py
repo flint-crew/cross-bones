@@ -18,6 +18,7 @@ from typing_extensions import TypeAlias
 from cross_bones.catalogue import (
     Catalogue,
     Catalogues,
+    TableKeys,
     load_catalogues,
 )
 from cross_bones.logging import logger
@@ -309,31 +310,17 @@ def get_offset_space(
     )
 
 
-def _create_default_table_keys() -> dict[str, str]:
-    logger.info("Getting default table keys")
-    return {
-        "ra": "ra",
-        "dec": "dec",
-        "int_flux": "int_flux",
-        "peak_flux": "peak_flux",
-        "local_rms": "local_rms",
-    }
-
-
 def unwise_shifts(
     catalogue_paths: Paths,
+    table_keys: TableKeys,
     output_prefix: str | None = None,
     sbid: int | None = None,
     field_name: str | None = None,
     beam_table: str = "closepack36_beams.fits",
-    unwise_table_location: str = "./",
+    unwise_table_location: Path = Path("./"),
     min_snr: float = 10.0,
     min_iso: float = 36.0,
-    table_keys: dict[str, str] | None = None,
 ) -> Path:
-    if table_keys is None:
-        table_keys = _create_default_table_keys()
-
     if output_prefix:
         output_parent = Path(output_prefix).parent
         output_parent.mkdir(exist_ok=True, parents=True)
@@ -346,7 +333,8 @@ def unwise_shifts(
     catalogue_paths = tuple(_catalogue_paths)
 
     # if SBID and field name not provide, guess from first input catalogue:
-    sbid, field_name = guess_sbid_and_field_racs(catalogue_path=catalogue_paths[0])
+    if sbid is None or field_name is None:
+        sbid, field_name = guess_sbid_and_field_racs(catalogue_path=catalogue_paths[0])
 
     beam_inf = field_beams[np.where(field_beams["FIELD_NAME"] == field_name)[0]]
     beam_skycoords = SkyCoord(
@@ -457,13 +445,6 @@ def get_parser() -> ArgumentParser:
     )
 
     parser.add_argument(
-        "--field-table",
-        default="closepack36_fields.fits",
-        type=str,
-        help="Table of field names for a given ASKAP survey. Default 'closepack36_fields.fits'",
-    )
-
-    parser.add_argument(
         "--beam-table",
         default="closepack36_beams.fits",
         type=str,
@@ -472,8 +453,8 @@ def get_parser() -> ArgumentParser:
 
     parser.add_argument(
         "--unwise-table-location",
-        default="./",
-        type=str,
+        default=Path("./"),
+        type=Path,
         help="Directory of the unWISE tables. Default './'",
     )
 
@@ -524,23 +505,24 @@ def cli() -> None:
 
     args = parser.parse_args()
 
+    table_keys = TableKeys(
+        ra=args.coord_keys[0],
+        dec=args.coord_keys[1],
+        int_flux=args.flux_keys[0],
+        peak_flux=args.flux_keys[1],
+        local_rms=args.rms_key,
+    )
+
     unwise_shifts(
         catalogue_paths=args.paths,
+        table_keys=table_keys,
         output_prefix=args.output_prefix,
         sbid=args.sbid,
         field_name=args.field_name,
         beam_table=args.beam_table,
-        field_table=args.field_table,
         unwise_table_location=args.unwise_table_location,
         min_snr=args.snr_min,
         min_iso=args.iso_min,
-        table_keys={
-            "ra": args.coord_keys[0],
-            "dec": args.coord_keys[1],
-            "int_flux": args.flux_keys[0],
-            "peak_flux": args.flux_keys[1],
-            "local_rms": args.rms_key,
-        },
     )
 
 
