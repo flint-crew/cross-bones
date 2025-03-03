@@ -173,5 +173,5 @@ def plot_offsets_in_field(
         ax.grid()
 
     fig.tight_layout()
-    plt.savefig(fname, dpi=150)
-    plt.close()
+    fig.savefig(fname, dpi=150)
+    plt.close(fig)
