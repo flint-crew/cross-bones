@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from time import time
 
 import astropy.units as u
 import numpy as np
@@ -19,7 +18,6 @@ from typing_extensions import TypeAlias
 from cross_bones.catalogue import (
     Catalogue,
     Catalogues,
-    TableKeys,
     load_catalogues,
 )
 from cross_bones.logging import logger
@@ -341,8 +339,6 @@ def unwise_shifts(
         output_parent.mkdir(exist_ok=True, parents=True)
 
     field_beams = Table.read(beam_table)
-    field_centres = Table.read(field_table)
-    logger.info(f"Loaded {len(field_centres)} beam centers")
 
     # assuming things are named correctly.
     _catalogue_paths = [Path(path) for path in catalogue_paths]
