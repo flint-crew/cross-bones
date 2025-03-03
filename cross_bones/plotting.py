@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -95,10 +97,17 @@ def plot_beam_locations(
 
 
 def plot_offset_grid_space(
-    fname: str,
+    fname: str | Path,
     offset_grid_space: OffsetGridSpace,
     window: tuple[float, float, float, float, float],
 ) -> None:
+    """Plot the offset surface of a match
+
+    Args:
+        fname (str | Path): The output file name to write
+        offset_grid_space (OffsetGridSpace): The constructed offset surface
+        window (tuple[float, float, float, float, float]): Details on the extent of the surface (min and max)
+    """
     min_ra, min_dec, min_sep = find_minimum_offset_space(offset_grid_space)
 
     fig, ax = plt.subplots(1, 1)
@@ -125,11 +134,13 @@ def plot_offset_grid_space(
     plt.close()
 
 
-def plot_offsets_in_field(offset_results: list[OffsetGridSpace], fname: str) -> None:
+def plot_offsets_in_field(
+    offset_results: list[OffsetGridSpace], fname: str | Path
+) -> None:
     fig, axes = plt.subplots(6, 6, figsize=(10, 10))
 
     for offset_result, ax in zip(offset_results, axes.flatten()):
-        minimum_point = find_minimum_offset_space(offset_result)
+        minimum_point = find_minimum_offset_space(offset_space=offset_result)
 
         min_dec = minimum_point[1]
         min_ra = minimum_point[0]

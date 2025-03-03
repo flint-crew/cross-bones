@@ -34,102 +34,191 @@ MatchMatrix: TypeAlias = NDArray[int]
 
 
 def guess_sbid_and_field_racs(
-    catalogue_path: Path,
+    catalogue_path: str | Path,
 ) -> tuple[int, str]:
-    """Attempt to guess SBID and field name from a catalogue name.
+    """Attempt to extract the SBID and field name from a file path.
+    The filenames assumes some deliminted name scheme, with '.' as
+    the field marker.
 
-    TODO: generalise for other ASKAP surveys"""
+    The field name is the second item, and it taken as it. The SBID
+    is taken as the first field, and requires a 'SB' prefix.
 
-    catalogue_path_base = catalogue_path.name
-    field_name_pos = catalogue_path_base.find("RACS_")
-    if field_name_pos == -1:
-        msg = f"No field name found in {catalogue_path_base}"
+    Args:
+        catalogue_path (str | Path): The file path to extract
+
+    Raises:
+        RuntimeError: Raised when a path does not follow expectations
+
+    Returns:
+        tuple[int, str]: And SBID and field name
+    """
+    name_components = str(Path(catalogue_path).name).split(".")
+    logger.info(f"These are the split name components: {name_components}")
+    field_name = name_components[1]
+
+    if name_components[0][:2] != "SB":
+        msg = f"SBID is not found in {name_components=}"
         raise RuntimeError(msg)
-    field_name = catalogue_path_base[field_name_pos : field_name_pos + 12]
 
-    sbid_pos = catalogue_path_base.find("SB")
-    if sbid_pos == -1:
-        msg = f"No SB found in {catalogue_path_base}"
-        raise RuntimeError(msg)
-    sbid = int(catalogue_path_base[sbid_pos + 2 :].split(".")[0])
+    try:
+        sbid = int(name_components[0][2:])
+    except ValueError as err:
+        msg = f"Can not convert {sbid=} to an int"
+        raise RuntimeError(msg) from err
 
     return sbid, field_name
 
 
-def download_unwise(
-    field_name: str,
-    beam_sc,
-    radius_deg: float = 5.0,
-    unwise_table_location: Path = Path("./"),
-    unwise_vizier: str = "II/363/unwise",
+def _get_output_table_path(
+    output_dir: Path | str, output_name: str, name_prefix: str | None = None
+) -> Path:
+    """Make the output table download path and perform some basic checks"""
+    base_output_dir: Path = Path(output_dir)
+
+    if not base_output_dir.exists():
+        logger.info(f"Creating {base_output_dir=}")
+        base_output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        assert base_output_dir.is_dir(), (
+            f"{base_output_dir} already exists and is not a directory"
+        )
+
+    # The name prefix may be the name of the survery being downloaded etc
+    out_name = [output_name]
+    if name_prefix:
+        out_name.insert(0, name_prefix)
+
+    return Path(f"{output_dir!s}/{'_'.join(out_name)}.fits")
+
+
+def _download_vizer_id_to_table(
+    sky_coord_center: SkyCoord, vizier_id: str, radius_deg: float, max_retries: int = 3
 ) -> Table:
-    unwise_table = unwise_table_location / f"unwise_{field_name}.fits"
+    """Internal method to download a Vizer catalogue around a region
 
-    field_cat = None
+    Args:
+        sky_coord_center (SkyCoord): The position to center the region on
+        vizier_id (str): The Vizer ID of the catalogue to download
+        radius_deg (float): Radius to obtain data through
+        max_retries (int, optional): The maximum number of attempts to download a table before a RunTimeError is raised
 
-    if unwise_table.exists():
-        field_cat = Table.read(unwise_table)
+    Raises:
+        RuntimeError: Raised when multiple attempts to download the table has failed
+
+    Returns:
+        Table: The downloaded table
+    """
+    attempt = 1
+    while attempt <= max_retries:
+        try:
+            logger.info(f"{attempt=} to download {vizier_id=}")
+            vizier.Vizier.ROW_LIMIT = -1
+            vizier_tables = vizier.Vizier(
+                columns=["RAJ2000", "DEJ2000"], row_limit=-1, timeout=720
+            ).query_region(
+                sky_coord_center, catalog=vizier_id, width=radius_deg * u.deg
+            )
+            break
+
+        except (ConnectionAbortedError, ConnectionError, ValueError) as e:
+            logger.warning(f"Caught {e=}")
+            logger.warning("Retry VizieR in 120s")
+            from time import sleep
+
+            sleep(120)
+            attempt += 1
+            continue
+    else:
+        msg = f"Too many attempts to download vizier table. {max_retries=}"
+        raise RuntimeError(msg)
+
+    assert len(vizier_tables) == 1, "More tables downloaded than expected"
+
+    # We need to clean the table up so it can be written nicely
+    vizier_table = vizier_tables[0]
+    for icol, _ in enumerate(vizier_table.itercols()):
+        vizier_table.columns[icol].description = ""
+        vizier_table.meta["description"] = ""
+
+    return vizier_table
+
+
+def download_vizier_catalogue(
+    field_name: str,
+    beam_skycoords: list[SkyCoord],
+    radius_deg: float = 5.0,
+    unwise_table_location: str | Path = "./",
+    vizier_id: str = "II/363/unwise",
+) -> Table:
+    """Download tables from vizier given a catalogue ID and positions to query a region around.
+    The tables will be concatenated tpgether, removed of duplicates and returned.
+
+    Args:
+        field_name (str): The field name of the region being downloaded.
+        beam_skycoords (list[SkyCoord]): A collection of coordinates defining a region
+        radius_deg (float, optional): The size of the region to download. Defaults to 5.0.
+        unwise_table_location (str | Path, optional): Location of the path of the output table. Defaults to "./".
+        vizier_id (str, optional): The vizier catalogue ID to download. Defaults to "II/363/unwise".
+
+    Returns:
+        Table: _description_
+    """
+    download_table_path = _get_output_table_path(
+        output_dir=unwise_table_location, output_name=field_name
+    )
+
+    if download_table_path.exists() and download_table_path.is_file():
+        logger.info(f"Found existing {download_table_path=}, loading.")
+        field_cat = Table.read(download_table_path)
         logger.debug(f"{len(field_cat)} rows loaded")
 
         return field_cat
 
-    for beam in range(36):
+    beam_catalogues: list[Table] = []
+    for beam_idx, beam_skycoord in enumerate(beam_skycoords):
         logger.debug(
-            f"Downloading {unwise_vizier} table for field {field_name} and beam {beam}"
+            f"Downloading {vizier_id} table for field {field_name} and beam {beam_idx}"
         )
 
-        unwise_beam_table = (
-            unwise_table_location / f"unwise_{field_name}_beam{beam:02d}.fits"
+        beam_cat_path = _get_output_table_path(
+            output_dir=unwise_table_location, output_name=f"{field_name}_{beam_idx:02d}"
         )
 
-        if unwise_beam_table.exists():
-            while True:
-                try:
-                    vizier.Vizier.ROW_LIMIT = -1
-                    unwise_tables = vizier.Vizier(
-                        columns=["RAJ2000", "DEJ2000"], row_limit=-1, timeout=720
-                    ).query_region(
-                        beam_sc[beam], catalog=unwise_vizier, width=radius_deg * u.deg
-                    )
-
-                except Exception as e:
-                    logger.error(e)
-                    logger.warning("Retry VizieR in 120s")
-                    time.sleep(120)
-                    continue
-
-                break
-
-            assert len(unwise_tables) == 1
-
-            beam_cat = unwise_tables[0]
-
-            for icol, _ in enumerate(beam_cat.itercols()):
-                beam_cat.columns[icol].description = ""
-                beam_cat.meta["description"] = ""
-
-            beam_cat.write(unwise_beam_table, overwrite=False)
-
+        if beam_cat_path.exists():
+            logger.info(f"Found cached file, reading {beam_cat_path}")
+            beam_cat = Table.read(beam_cat_path)
         else:
-            logger.info(f"Found cached file, reading {unwise_beam_table}")
-            beam_cat = Table.read(unwise_beam_table)
+            beam_cat = _download_vizer_id_to_table(
+                sky_coord_center=beam_skycoord,
+                vizier_id=vizier_id,
+                radius_deg=radius_deg,
+            )
+            beam_cat.write(beam_cat_path, overwrite=False)
 
         logger.info(f"{len(beam_cat)} rows downloaded")
         logger.info("Merging into field catalogue")
-        field_cat = beam_cat if beam == 0 else unique(vstack([field_cat, beam_cat]))
+        beam_catalogues.append(beam_cat)
+        logger.info(f"Unlinking {beam_cat_path}")
+        beam_cat_path.unlink()
 
-    field_cat.write(unwise_table, format="fits", overwrite=True)
-    logger.info("Cleaning cached beam catalogues")
-    unwise_tables = unwise_table_location.glob(f"unwise_{field_name}_beam*.fits")
-    for table in unwise_tables:
-        table.unlink()
+    field_catalogue: Table = unique(vstack(beam_catalogues)) if field_cat else beam_cat
+    field_catalogue.write(download_table_path, format="fits", overwrite=True)
 
-    return field_cat
+    return field_catalogue
 
 
 def add_offset_to_coords_skyframeoffset(
-    sky_coords: SkyCoord, offset: float
+    sky_coords: SkyCoord, offset: tuple[float, float]
 ) -> SkyCoord:
+    """Add angular offsets to a ``SkyCoord`` object.
+
+    Args:
+        sky_coords (SkyCoord): The input positions that will be shifted
+        offset (tuple[float, float]): The delta RA and Dec units
+
+    Returns:
+        SkyCoord: The shifted units
+    """
     d_ra = -offset[0] * u.arcsec
     d_dec = -offset[1] * u.arcsec
 
@@ -139,7 +228,7 @@ def add_offset_to_coords_skyframeoffset(
 def get_offset_space(
     catalogue: Catalogue,
     unwise_table: Table,
-    window: tuple[float],
+    window: tuple[float, float, float, float, float],
     beam: int | None = None,
 ) -> OffsetGridSpace:
     # TODO create skycoord object earlier, and pass between beams
@@ -164,7 +253,7 @@ def get_offset_space(
     ras = np.linspace(window[0], window[1], ra_bins)
     decs = np.linspace(window[2], window[3], dec_bins)
 
-    coords = []
+    coords: list[SkyCoord] = []
 
     n_sources = len(cata_sky)
     n_delta = n_sources * len(decs) * len(ras)
@@ -172,8 +261,9 @@ def get_offset_space(
     broadcast_d_ra = np.zeros(n_delta)
     broadcast_d_dec = np.zeros(n_delta)
 
-    for _, dec in enumerate(decs):
-        for _, ra in enumerate(ras):
+    for d_idx, dec in enumerate(decs):
+        for r_idx, ra in enumerate(ras):
+            logger.debug(f"{d_idx=} {r_idx=}")
             i = len(coords)
             j = i + 1
             broadcast_d_ra[i * n_sources : j * n_sources] = ra
@@ -210,20 +300,30 @@ def get_offset_space(
             results[k] = seps
             accumulated_seps[k] = v
 
-    array_decra = np.array(pair_decra, dtype=float)
+    array_decra = np.array(pair_decra)
 
     return OffsetGridSpace(
         dec_offsets=array_decra[:, 0],
         ra_offsets=array_decra[:, 1],
-        beam=beam,
+        beam=beam if beam else 0,
         n_sources=n_sources,
         seps=accumulated_seps,
     )
 
 
+def _create_default_table_keys() -> dict[str, str]:
+    logger.info("Getting default table keys")
+    return {
+        "ra": "ra",
+        "dec": "dec",
+        "int_flux": "int_flux",
+        "peak_flux": "peak_flux",
+        "local_rms": "local_rms",
+    }
+
+
 def unwise_shifts(
-    catalogue_paths: list[str],
-    table_keys: TableKeys,
+    catalogue_paths: Paths,
     output_prefix: str | None = None,
     sbid: int | None = None,
     field_name: str | None = None,
@@ -231,22 +331,29 @@ def unwise_shifts(
     unwise_table_location: str = "./",
     min_snr: float = 10.0,
     min_iso: float = 36.0,
-    do_plot: bool = True,
-) -> Catalogues:
+    table_keys: dict[str, str] | None = None,
+) -> Path:
+    if table_keys is None:
+        table_keys = _create_default_table_keys()
+
     if output_prefix:
         output_parent = Path(output_prefix).parent
         output_parent.mkdir(exist_ok=True, parents=True)
 
     field_beams = Table.read(beam_table)
+    field_centres = Table.read(field_table)
+    logger.info(f"Loaded {len(field_centres)} beam centers")
 
     # assuming things are named correctly.
-    catalogue_paths.sort()
+    _catalogue_paths = [Path(path) for path in catalogue_paths]
+    _catalogue_paths.sort()
+    catalogue_paths = tuple(_catalogue_paths)
 
     # if SBID and field name not provide, guess from first input catalogue:
     sbid, field_name = guess_sbid_and_field_racs(catalogue_path=catalogue_paths[0])
 
     beam_inf = field_beams[np.where(field_beams["FIELD_NAME"] == field_name)[0]]
-    beam_sc = SkyCoord(
+    beam_skycoords = SkyCoord(
         ra=beam_inf["RA_DEG"] * u.deg, dec=beam_inf["DEC_DEG"] * u.deg, frame="fk5"
     )
 
@@ -258,9 +365,9 @@ def unwise_shifts(
         min_snr=min_snr,
     )
 
-    unwise_field_cat = download_unwise(
+    unwise_field_cat = download_vizier_catalogue(
         field_name=field_name,
-        beam_sc=beam_sc,
+        beam_skycoords=beam_skycoords,
         unwise_table_location=unwise_table_location,
     )
 
@@ -279,22 +386,20 @@ def unwise_shifts(
         min_ra, min_dec = 0.0, 0.0
 
         for i in range(len(windows)):
-            window: tuple[float, float, float, float, float] = (
-                float(min_ra - windows[i][0]),
-                float(min_ra + windows[i][1]),
-                float(min_dec - windows[i][2]),
-                float(min_dec + windows[i][3]),
-                float(windows[i][4]),
+            window = (
+                min_ra - windows[i][0],
+                min_ra + windows[i][1],
+                min_dec - windows[i][2],
+                min_dec + windows[i][3],
+                windows[i][4],
             )
 
             logger.debug(f"Working on window: {window}")
 
-            offset_results = get_offset_space(
+            offset_results: OffsetGridSpace = get_offset_space(
                 catalogue=catalogues[beam],
                 unwise_table=unwise_field_cat,
                 window=window,
-                plot=do_plot,
-                radius_deg=5.0,
                 beam=beam,
             )
 
@@ -326,7 +431,10 @@ def unwise_shifts(
     else:
         outname = output_prefix + "-unwise-shifts.csv"
 
-    shift_table.write(outname, format="ascii.csv", overwrite=True)
+    output_path = Path(outname)
+    shift_table.write(output_path, format="ascii.csv", overwrite=True)
+
+    return output_path
 
 
 def get_parser() -> ArgumentParser:
@@ -346,28 +454,28 @@ def get_parser() -> ArgumentParser:
 
     parser.add_argument(
         "-f",
-        "--field_name",
+        "--field-name",
         type=str,
         default=None,
         help="ASKAP field name, if none provided it will assumed a RACS observation and guessed from the filename.",
     )
 
     parser.add_argument(
-        "--field_table",
+        "--field-table",
         default="closepack36_fields.fits",
         type=str,
         help="Table of field names for a given ASKAP survey. Default 'closepack36_fields.fits'",
     )
 
     parser.add_argument(
-        "--beam_table",
+        "--beam-table",
         default="closepack36_beams.fits",
         type=str,
         help="Table of beam positions for a given ASKAP footprint. Default 'closepack36_beams.fits",
     )
 
     parser.add_argument(
-        "--unwise_table_location",
+        "--unwise-table-location",
         default="./",
         type=str,
         help="Directory of the unWISE tables. Default './'",
@@ -380,49 +488,33 @@ def get_parser() -> ArgumentParser:
         default=None,
         help="The prefix to base outputs onto",
     )
-    # parser.add_argument(
-    #     "--passes",
-    #     type=int,
-    #     default=1,
-    #     help="Number of passes over the data should the iterative method attempt",
-    # )
-    # parser.add_argument(
-    #     "--all-plots",
-    #     action="store_true",
-    #     help="If provided all plots will be produced. Otherwise a minimumal set will be",
-    # )
-    # parser.add_argument(
-    #     "--report-statistics-throughout",
-    #     action="store_true",
-    #     help="Collect and report statistics each iteration",
-    # )
     parser.add_argument(
-        "--coord_keys",
+        "--coord-keys",
         nargs=2,
         default=["ra", "dec"],
         type=str,
         help="Column names/keys in tables for (ra, dec). [Default ('ra', 'dec')]",
     )
     parser.add_argument(
-        "--flux_keys",
+        "--flux-keys",
         nargs=2,
         default=["int_flux", "peak_flux"],
         type=str,
         help="Column names/keys in tables for integrated and peak flux density. [Default ('int_flux', 'peak_flux')]",
     )
     parser.add_argument(
-        "--rms_key",
-        default="local_rms",
+        "--rms-key",
+        default="local-rms",
         type=str,
         help="Local rms column name/key in tables. Default 'local_rms'",
     )
 
     parser.add_argument(
-        "--snr_min", default=5.0, type=float, help="Minimum SNR of sources. Default 5"
+        "--snr-min", default=5.0, type=float, help="Minimum SNR of sources. Default 5"
     )
 
     parser.add_argument(
-        "--iso_min",
+        "--iso-min",
         default=36.0,
         type=float,
         help="Minimum separation between close neighbours in arcsec. Default 36",

@@ -91,7 +91,17 @@ def calculate_matches(
     )
 
 
-def find_minimum_offset_space(offset_space: OffsetGridSpace) -> tuple[float, float, float]:
+def find_minimum_offset_space(
+    offset_space: OffsetGridSpace,
+) -> tuple[float, float, float]:
+    """Search the input offset grid space to find the minimum position
+
+    Args:
+        offset_space (OffsetGridSpace): Results from the brute force grid search
+
+    Returns:
+        tuple[float, float, float]: The minimum minimum delta RA and delta Dec and the corresponding separation
+    """
     minimum_sep = None
     minimum_ra = None
     minimum_dec = None
@@ -102,5 +112,9 @@ def find_minimum_offset_space(offset_space: OffsetGridSpace) -> tuple[float, flo
             minimum_sep = sep
             minimum_ra = ra
             minimum_dec = dec
+
+    assert minimum_dec is not None
+    assert minimum_ra is not None
+    assert minimum_sep is not None
 
     return minimum_ra, minimum_dec, minimum_sep

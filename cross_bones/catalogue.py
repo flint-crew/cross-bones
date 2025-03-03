@@ -84,6 +84,16 @@ class TableKeys:
 Catalogues = list[Catalogue]
 
 
+def _get_default_table_keys() -> dict[str, str]:
+    return {
+        "ra": "ra",
+        "dec": "dec",
+        "int_flux": "int_flux",
+        "peak_flux": "peak_flux",
+        "local_rms": "local_rms",
+    }
+
+
 def make_sky_coords(
     table: Table | Catalogue, ra_key: str = "ra", dec_key: str = "dec"
 ) -> SkyCoord:
@@ -183,6 +193,9 @@ def load_catalogue(
     Returns:
         Catalogue: Loaded catalogue
     """
+    if table_keys is None:
+        table_keys = _get_default_table_keys()
+
     logger.info(f"Loading {catalogue_path}")
     table = Table.read(catalogue_path)
 
@@ -228,6 +241,9 @@ def load_catalogues(
     min_iso: float = 36.0,
 ) -> Catalogues:
     """Load in all of the catalgues"""
+    if table_keys is None:
+        table_keys = _get_default_table_keys()
+
     return [
         load_catalogue(
             catalogue_path=catalogue_path,
