@@ -1,3 +1,5 @@
+"""Some basic plotting procedures used throughout ``cross_bones``"""
+
 from __future__ import annotations
 
 from pathlib import Path
