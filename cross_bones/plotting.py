@@ -137,7 +137,23 @@ def plot_offset_grid_space(
 def plot_offsets_in_field(
     offset_results: list[OffsetGridSpace], fname: str | Path
 ) -> None:
-    fig, axes = plt.subplots(6, 6, figsize=(10, 10))
+    """Create a figure of each of the ``OffsetGridSpace`` where
+    each surface is its own panel
+
+    Args:
+        offset_results (list[OffsetGridSpace]): The characterised surfaces to plot
+        fname (str | Path): The output file name
+    """
+    from math import ceil
+
+    num_columns = ceil(len(offset_results) ** 0.5)
+    num_rows = ceil(len(offset_results / num_columns))
+
+    assert num_columns * num_rows >= len(offset_results), (
+        f"The grid {num_columns=} {num_rows=} is not large enough for {len(offset_results)} results"
+    )
+
+    fig, axes = plt.subplots(num_columns, num_rows, figsize=(10, 10))
 
     for offset_result, ax in zip(offset_results, axes.flatten()):
         minimum_point = find_minimum_offset_space(offset_space=offset_result)
