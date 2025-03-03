@@ -59,10 +59,11 @@ def guess_sbid_and_field_racs(
         msg = f"SBID is not found in {name_components=}"
         raise RuntimeError(msg)
 
+    sbid_str = name_components[0][2:]
     try:
-        sbid = int(name_components[0][2:])
+        sbid = int(sbid_str)
     except ValueError as err:
-        msg = f"Can not convert {sbid=} to an int"
+        msg = f"Can not convert {sbid_str=} to an int"
         raise RuntimeError(msg) from err
 
     return sbid, field_name
