@@ -482,7 +482,7 @@ def get_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--rms-key",
-        default="local-rms",
+        default="local_rms",
         type=str,
         help="Local rms column name/key in tables. Default 'local_rms'",
     )
