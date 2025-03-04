@@ -27,6 +27,7 @@ from cross_bones.matching import (
     find_minimum_offset_space,
 )
 from cross_bones.plotting import plot_offset_grid_space, plot_offsets_in_field
+from cross_bones.shift_stats import compare_original_to_fitted
 
 Paths = tuple[Path, ...]
 MatchMatrix: TypeAlias = NDArray[int]
@@ -469,6 +470,12 @@ def get_parser() -> ArgumentParser:
     )
 
     parser.add_argument(
+        "--report-statistics",
+        action="store_true",
+        help="Report statistics of offsets with respect to neighbouring catalogues.",
+    )
+
+    parser.add_argument(
         "-o",
         "--output-prefix",
         type=str,
@@ -523,7 +530,7 @@ def cli() -> None:
         local_rms=args.rms_key,
     )
 
-    unwise_shifts(
+    output_filename = unwise_shifts(
         catalogue_paths=args.paths,
         table_keys=table_keys,
         output_prefix=args.output_prefix,
@@ -534,6 +541,17 @@ def cli() -> None:
         min_snr=args.snr_min,
         min_iso=args.iso_min,
     )
+
+    if args.report_statistics:
+        compare_original_to_fitted(
+            catalogue_list=args.paths,
+            offset_file=str(output_filename),
+            output_prefix=args.output_prefix,
+            max_sep_from_beam=None,
+            dxs_key="d_ra",
+            dys_key="d_dec",
+            table_keys=table_keys,
+        )
 
 
 if __name__ == "__main__":
