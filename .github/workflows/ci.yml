@@ -52,7 +52,7 @@ jobs:
           allow-prereleases: true
 
       - name: Install package
-        run: python -m pip install .[test]
+        run: python -m pip install uv && uv pip install --system .[test]
 
       - name: Test package
         run: >-
@@ -60,6 +60,6 @@ jobs:
           --durations=20
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v5.3.1
+        uses: codecov/codecov-action@v5.4.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
