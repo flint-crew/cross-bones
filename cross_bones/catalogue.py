@@ -168,7 +168,7 @@ def load_catalogue(
     catalogue_path: Path,
     table_keys: TableKeys,
     idx: int | None = None,
-    min_snr: float = 10.0,
+    min_snr: float = 5.0,
     min_iso: float = 36.0,
 ) -> Catalogue:
     """Load a beam catalogue astropy table
@@ -183,7 +183,7 @@ def load_catalogue(
     Returns:
         Catalogue: Loaded catalogue
     """
-    logger.info(f"Loading {catalogue_path}")
+    logger.debug(f"Loading {catalogue_path}")
     table = Table.read(catalogue_path)
 
     table_mask = filter_table(
@@ -192,7 +192,7 @@ def load_catalogue(
     sub_table = table[table_mask]
 
     sky_coords = make_sky_coords(
-        table=table, ra_key=table_keys.ra, dec_key=table_keys.dec
+        table=sub_table, ra_key=table_keys.ra, dec_key=table_keys.dec
     )
 
     center = estimate_skycoord_centre(
@@ -224,7 +224,7 @@ def load_catalogue(
 def load_catalogues(
     catalogue_paths: Paths,
     table_keys: TableKeys,
-    min_snr: float = 10.0,
+    min_snr: float = 5.0,
     min_iso: float = 36.0,
 ) -> Catalogues:
     """Load in all of the catalgues"""
@@ -263,3 +263,40 @@ def save_catalogue_shift_positions(
     shifts_df.to_csv(output_path, index=False)
 
     return output_path
+
+
+def guess_sbid_and_field_racs(
+    catalogue_path: str | Path,
+) -> tuple[int, str]:
+    """Attempt to extract the SBID and field name from a file path.
+    The filenames assumes some deliminted name scheme, with '.' as
+    the field marker.
+
+    The field name is the second item, and it taken as it. The SBID
+    is taken as the first field, and requires a 'SB' prefix.
+
+    Args:
+        catalogue_path (str | Path): The file path to extract
+
+    Raises:
+        RuntimeError: Raised when a path does not follow expectations
+
+    Returns:
+        tuple[int, str]: And SBID and field name
+    """
+    name_components = str(Path(catalogue_path).name).split(".")
+    logger.debug(f"These are the split name components: {name_components}")
+    field_name = name_components[1]
+
+    if name_components[0][:2] != "SB":
+        msg = f"SBID is not found in {name_components=}"
+        raise RuntimeError(msg)
+
+    sbid_str = name_components[0][2:]
+    try:
+        sbid = int(sbid_str)
+    except ValueError as err:
+        msg = f"Can not convert {sbid_str=} to an int"
+        raise RuntimeError(msg) from err
+
+    return sbid, field_name
