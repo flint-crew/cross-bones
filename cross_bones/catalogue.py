@@ -84,16 +84,6 @@ class TableKeys:
 Catalogues = list[Catalogue]
 
 
-def _get_default_table_keys() -> dict[str, str]:
-    return {
-        "ra": "ra",
-        "dec": "dec",
-        "int_flux": "int_flux",
-        "peak_flux": "peak_flux",
-        "local_rms": "local_rms",
-    }
-
-
 def make_sky_coords(
     table: Table | Catalogue, ra_key: str = "ra", dec_key: str = "dec"
 ) -> SkyCoord:
