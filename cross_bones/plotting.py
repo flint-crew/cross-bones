@@ -149,7 +149,7 @@ def plot_offsets_in_field(
     from math import ceil
 
     num_columns = ceil(len(offset_results) ** 0.5)
-    num_rows = ceil(len(offset_results / num_columns))
+    num_rows = ceil(len(offset_results) / num_columns)
 
     assert num_columns * num_rows >= len(offset_results), (
         f"The grid {num_columns=} {num_rows=} is not large enough for {len(offset_results)} results"
