@@ -149,9 +149,10 @@ def download_vizier_catalogue(
     radius_deg: float = 5.0,
     unwise_table_location: str | Path = "./",
     vizier_id: str = "II/363/unwise",
+    vizier_table_prefix: str | None = None,
 ) -> Table:
     """Download tables from vizier given a catalogue ID and positions to query a region around.
-    The tables will be concatenated tpgether, removed of duplicates and returned.
+    The tables will be concatenated together, removed of duplicates and returned.
 
     Args:
         field_name (str): The field name of the region being downloaded.
@@ -163,9 +164,17 @@ def download_vizier_catalogue(
     Returns:
         Table: _description_
     """
+
+    if vizier_table_prefix is None:
+        vizier_table_prefix = vizier_id.split("/")[-1]
+
     download_table_path = _get_output_table_path(
-        output_dir=unwise_table_location, output_name=field_name
+        output_dir=unwise_table_location,
+        output_name=field_name,
+        name_prefix=vizier_table_prefix,
     )
+
+    logger.debug(f"Looking for {download_table_path}")
 
     if download_table_path.exists() and download_table_path.is_file():
         logger.info(f"Found existing {download_table_path=}, loading.")
