@@ -543,8 +543,8 @@ def cli() -> None:
     )
 
     if args.report_statistics:
-        original_results, fitted_results = compare_original_to_fitted(
-            catalogue_paths=args.paths,
+        compare_original_to_fitted(
+            catalogue_list=args.paths,
             offset_file=str(output_filename),
             output_prefix=args.output_prefix,
             max_sep_from_beam=None,
