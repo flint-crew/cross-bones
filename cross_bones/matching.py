@@ -47,21 +47,30 @@ class OffsetGridSpace:
 
 
 def calculate_matches(
-    catalogue_1: Catalogue, catalogue_2: Catalogue, sep_limit_arcsecond: float = 9
+    catalogue_1: Catalogue | SkyCoord,
+    catalogue_2: Catalogue | SkyCoord,
+    sep_limit_arcsecond: float = 9,
 ) -> Match:
     """Match a pair of catalogues to identify the sources in common.
 
     Args:
-        catalogue_1 (Catalogue): The first loaded catalogue
-        catalogue_2 (Catalogue): The second loaded catalogue
+        catalogue_1 (Catalogue or SkyCoord): The first loaded catalogue or SkyCoord object.
+        catalogue_2 (Catalogue or SkyCoord): The second loaded catalogue or SkyCoord object.
         sep_limit_arcsecond (float, optional): The separation limit for a match, in arcseconds. Defaults to None.
 
     Returns:
         Match: The result of the matching
     """
 
-    sky_pos_1 = make_sky_coords(catalogue_1)
-    sky_pos_2 = make_sky_coords(catalogue_2)
+    if isinstance(catalogue_1, Catalogue):
+        sky_pos_1 = make_sky_coords(catalogue_1)
+    elif isinstance(catalogue_1, SkyCoord):
+        sky_pos_1 = catalogue_1
+
+    if isinstance(catalogue_2, Catalogue):
+        sky_pos_2 = make_sky_coords(catalogue_2)
+    elif isinstance(catalogue_2, SkyCoord):
+        sky_pos_2 = catalogue_2
 
     matches = search_around_sky(
         sky_pos_1, sky_pos_2, seplimit=sep_limit_arcsecond * u.arcsec
