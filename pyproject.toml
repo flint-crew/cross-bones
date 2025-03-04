@@ -30,11 +30,11 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-  # numpy==2.0 not required, but not sure which numpy would be lowest
-  "numpy>=1.22.4",
+  "numpy",
   "astropy",
   "matplotlib",
-  "pandas"
+  "pandas",
+  "astroquery>=0.4.8.post1",
 ]
 
 [project.optional-dependencies]
@@ -67,6 +67,7 @@ Changelog = "https://github.com/flint-crew/cross-bones/releases"
 
 [project.scripts]
 cross_bones = "cross_bones.align_catalogues:cli"
+unwise_cross_bones = "cross_bones.unwise_align_catalogues:cli"
 
 [tool.hatch]
 version.source = "vcs"
@@ -121,7 +122,7 @@ disallow_incomplete_defs = true
 
 
 [[tool.mypy.overrides]]
-module = ["astropy.*", "matplotlib.*"]
+module = ["astropy.*", "matplotlib.*", "astroquery.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

@@ -228,6 +228,7 @@ def load_catalogues(
     min_iso: float = 36.0,
 ) -> Catalogues:
     """Load in all of the catalgues"""
+
     return [
         load_catalogue(
             catalogue_path=catalogue_path,
