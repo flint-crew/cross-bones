@@ -210,7 +210,7 @@ def download_vizier_catalogue(
         logger.info(f"Unlinking {beam_cat_path}")
         beam_cat_path.unlink()
 
-    field_catalogue: Table = unique(vstack(beam_catalogues)) if field_cat else beam_cat
+    field_catalogue: Table = unique(vstack(beam_catalogues))
     field_catalogue.write(download_table_path, format="fits", overwrite=True)
 
     return field_catalogue
