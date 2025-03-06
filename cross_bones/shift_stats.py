@@ -99,8 +99,8 @@ def compare_askap_beams(
                 continue
 
             match = calculate_matches(
-                catalogue_1=comp_shift,
-                catalogue_2=ref_shift,
+                catalogue_1=ref_shift,
+                catalogue_2=comp_shift,
                 sep_limit_arcsecond=match_radius,
             )
 
