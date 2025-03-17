@@ -51,7 +51,7 @@ def apply_shift_to_image(
         )
 
         hdu[slice].header[keys[0]] = shifted_coords.ra.value
-        hdu[slice].headerdr[keys[1]] = shifted_coords.dec.value
+        hdu[slice].header[keys[1]] = shifted_coords.dec.value
 
         hdu.writeto(outname, overwrite=True)
 

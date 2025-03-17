@@ -52,7 +52,7 @@ def cli() -> None:
     shift_image_collections(
         images=args.images,
         offset_file=args.offset_file,
-        outname_suffix=args.outname_suffix,
+        outname_suffix=args.suffix,
         dxs_key=args.dra_key,
         dys_key=args.ddec_key,
     )
