@@ -1,8 +1,11 @@
 # cross-bones
 
+## Table of contents
+
 ```{toctree}
-:maxdepth: 2
-:hidden:
+:maxdepth: 1
+
+cli.md
 
 ```
 

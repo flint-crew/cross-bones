@@ -42,25 +42,11 @@ pip install git+https://github.com/flint-crew/cross-bones
 pip install cross-bones
 ```
 
-## Usage
+## Usage and documentation
 
 ### Command-line
 
-```bash
-$ cross_bones -h
-# usage: cross_bones [-h] [-o OUTPUT_PREFIX] [--passes PASSES] paths [paths ...]
-
-# Looking at per-beam shifts
-
-# positional arguments:
-#   paths                 The beam wise catalogues to examine
-
-# options:
-#   -h, --help            show this help message and exit
-#   -o OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
-#                         The prefix to base outputs onto
-#   --passes PASSES       Number of passes over the data should the iterative method attempt
-```
+Full documentation is hosted on [ReadTheDocs](https://cross-bones.readthedocs.io/en/latest/).
 
 ## Contributing
 
