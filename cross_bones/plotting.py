@@ -137,7 +137,9 @@ def plot_offset_grid_space(
 
 
 def plot_offsets_in_field(
-    offset_results: list[OffsetGridSpace], fname: str | Path
+    offset_results: list[OffsetGridSpace],
+    windows: list[tuple[float, float, float, float, float]],
+    fname: str | Path,
 ) -> None:
     """Create a figure of each of the ``OffsetGridSpace`` where
     each surface is its own panel
@@ -157,13 +159,17 @@ def plot_offsets_in_field(
 
     fig, axes = plt.subplots(num_columns, num_rows, figsize=(10, 10))
 
-    for offset_result, ax in zip(offset_results, axes.flatten()):
+    for offset_result, ax, window in zip(offset_results, axes.flatten()[::-1], windows):
         minimum_point = find_minimum_offset_space(offset_space=offset_result)
 
         min_dec = minimum_point[1]
         min_ra = minimum_point[0]
 
-        _ = ax.imshow(offset_result.seps, extent=(-5, 5, -5, 5), origin="lower")
+        _ = ax.imshow(
+            offset_result.seps,
+            extent=(window[0], window[1], window[2], window[3]),
+            origin="lower",
+        )
 
         ax.grid()
         ax.axhline(min_dec, ls="--", color="white")
