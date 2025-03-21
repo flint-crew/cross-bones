@@ -171,6 +171,8 @@ def plot_offsets_in_field(
             origin="lower",
         )
 
+        ax.set(title=f'({min_ra:.2f}, {min_dec:.2f})"')
+
         ax.grid()
         ax.axhline(min_dec, ls="--", color="white")
         ax.axvline(min_ra, ls="--", color="white")
