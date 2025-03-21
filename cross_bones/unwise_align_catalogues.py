@@ -374,6 +374,7 @@ def unwise_shifts(
         unwise_table_location=unwise_table_location,
     )
 
+    # old defaults
     # window_incs = [10.0, 1.0, 0.1]
     # windows = [(wi, wi, wi, wi, wi / 10.0) for wi in window_incs]
     windows = [(window_width, window_width, window_width, window_width, window_delta)]
@@ -394,6 +395,7 @@ def unwise_shifts(
     dec_offsets = np.full((len(catalogues),), np.nan)
 
     all_offset_results = []
+    final_windows = []
 
     for beam in range(36):
         logger.debug(f"Working on beam {beam}")
@@ -432,6 +434,7 @@ def unwise_shifts(
         dec_offsets[beam] = min_dec
 
         all_offset_results.append(offset_results)
+        final_windows.append(window)
 
         if not plot_all_windows:
             plot_offset_grid_space(
@@ -443,6 +446,7 @@ def unwise_shifts(
     plot_offsets_in_field(
         offset_results=all_offset_results,
         fname=f"{output_prefix}_offset_grid.png",
+        windows=final_windows,
     )
 
     shift_table = Table(
