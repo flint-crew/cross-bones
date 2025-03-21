@@ -47,7 +47,7 @@ def apply_shift_to_image(
         )
 
         shifted_coords = ref_coords.spherical_offsets_by(
-            dra * u.arcsec, ddec * u.arcsec
+            -dra * u.arcsec, -ddec * u.arcsec
         )
 
         hdu[slice].header[keys[0]] = shifted_coords.ra.value
