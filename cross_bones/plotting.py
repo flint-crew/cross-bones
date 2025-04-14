@@ -137,7 +137,7 @@ def plot_offset_grid_space(
 
 
 def plot_offsets_in_field(
-    offset_results: list[OffsetGridSpace],
+    offset_results: list[OffsetGridSpace | None],
     windows: list[tuple[float, float, float, float, float]],
     fname: str | Path,
 ) -> None:
@@ -160,6 +160,9 @@ def plot_offsets_in_field(
     fig, axes = plt.subplots(num_columns, num_rows, figsize=(10, 10))
 
     for offset_result, ax, window in zip(offset_results, axes.flatten()[::-1], windows):
+        if offset_result is None:
+            continue
+
         minimum_point = find_minimum_offset_space(offset_space=offset_result)
 
         min_dec = minimum_point[1]
