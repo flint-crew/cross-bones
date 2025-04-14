@@ -140,9 +140,16 @@ def compare_askap_beams(
                 median_dec_offsets,
                 std_dec_offsets,
             ],
-            names="beam,n_matches,mean_ra,median_ra,std_ra,mean_dec,median_dec,std_dec".split(
-                ","
-            ),
+            names=[
+                "beam",
+                "n_matches",
+                "mean_ra",
+                "median_ra",
+                "std_ra",
+                "mean_dec",
+                "median_dec",
+                "std_dec",
+            ],
         )
 
         output_table.write(
@@ -242,9 +249,18 @@ def compare_original_to_fitted(
                 [r_original["median_ddec"], r_fitted["median_ddec"]],
                 [r_original["std_ddec"], r_fitted["std_ddec"]],
             ],
-            names="comparison,field_name,sbid,n_matches,mean_ra,median_ra,std_ra,mean_dec,median_dec,std_dec".split(
-                ","
-            ),
+            names=[
+                "comparison",
+                "field_name",
+                "sbid",
+                "n_matches",
+                "mean_ra",
+                "median_ra",
+                "std_ra",
+                "mean_dec",
+                "median_dec",
+                "std_dec",
+            ],
         )
 
         out_table.write(
