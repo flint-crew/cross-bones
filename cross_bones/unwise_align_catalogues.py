@@ -266,6 +266,7 @@ def get_offset_space(
     coords: list[SkyCoord] = []
 
     n_sources = len(cata_sky)
+    logger.debug(f"{catalogue.path}: {n_sources}")
     n_delta = n_sources * len(decs) * len(ras)
 
     broadcast_d_ra = np.zeros(n_delta)
@@ -331,11 +332,13 @@ def unwise_shifts(
     unwise_table_location: Path = Path("./"),
     min_snr: float = 10.0,
     min_iso: float = 36.0,
+    min_sources: int = 1,
     window_iter: int = 7,
     window_inc: float = 4.0,
     window_width: float = 25.0,
     window_delta: float = 5.0,
     plot_all_windows: bool = False,
+    fill_value: float = np.nan,
 ) -> Path:
     if output_prefix:
         output_parent = Path(output_prefix).parent
@@ -388,17 +391,27 @@ def unwise_shifts(
                 window_delta / (i * window_inc),
             )
         )
+
+    window0 = windows[0]
     logger.debug(f"Windows: {windows}")
 
     # TODO add other stats??
-    ra_offsets = np.full((len(catalogues),), np.nan)
-    dec_offsets = np.full((len(catalogues),), np.nan)
+    ra_offsets = np.full((len(catalogues),), fill_value)
+    dec_offsets = np.full((len(catalogues),), fill_value)
 
-    all_offset_results = []
-    final_windows = []
+    all_offset_results: list[OffsetGridSpace | None] = []
+    final_windows: list[tuple[float, float, float, float, float]] = []
 
     for beam in range(36):
         logger.debug(f"Working on beam {beam}")
+
+        if len(catalogues[beam].table) < min_sources:
+            logger.warning(
+                f"Beam {beam} does not have enough sources {len(catalogues[beam].table)} / {min_sources}"
+            )
+            final_windows.append(window0)
+            all_offset_results.append(None)
+            continue
 
         min_ra, min_dec = 0.0, 0.0
 
@@ -544,6 +557,13 @@ def get_parser() -> ArgumentParser:
     )
 
     parser.add_argument(
+        "--sources-min",
+        default=1,
+        type=int,
+        help="Minimum number of sources (after filtering) per catalogue. Default 1",
+    )
+
+    parser.add_argument(
         "--plot_all_windows",
         action="store_true",
         help="Switch to enable plotting offsets for all windows. Default is to only plot final window.",
@@ -603,6 +623,7 @@ def cli() -> None:
         unwise_table_location=args.unwise_table_location,
         min_snr=args.snr_min,
         min_iso=args.iso_min,
+        min_sources=args.sources_min,
         window_iter=args.window_max_iterations,
         window_inc=args.window_increment,
         window_width=args.window_width,
