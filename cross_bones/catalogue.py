@@ -9,7 +9,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from numpy.typing import NDArray
 
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 
 Paths = tuple[Path, ...]
 

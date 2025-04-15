@@ -27,7 +27,7 @@ def get_parser() -> ArgumentParser:
     subparsers.add_parser(
         "internal",
         help="Align catalogues using internal cross-matching",
-        parents=[align_catalogues.get_parser()],
+        parents=[align_catalogues.get_parser(parent_parser=True)],
     )
     # TODO: Add this
     # subparsers.add_parser(
@@ -38,17 +38,17 @@ def get_parser() -> ArgumentParser:
     subparsers.add_parser(
         "apply",
         help="Apply offset shifts to images",
-        parents=[apply_shifts.get_parser()],
+        parents=[apply_shifts.get_parser(parent_parser=True)],
     )
     subparsers.add_parser(
         "stats",
         help="Calculate statistics of offset shifts",
-        parents=[shift_stats.get_parser()],
+        parents=[shift_stats.get_parser(parent_parser=True)],
     )
     subparsers.add_parser(
         "unwise",
         help="Align catalogues using unWISE catalogues",
-        parents=[unwise_align_catalogues.get_parser()],
+        parents=[unwise_align_catalogues.get_parser(parent_parser=True)],
     )
     parser.add_argument(
         "--version",

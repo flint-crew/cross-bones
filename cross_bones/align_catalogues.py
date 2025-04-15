@@ -26,7 +26,7 @@ from cross_bones.catalogue import (
     make_sky_coords,
     save_catalogue_shift_positions,
 )
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 from cross_bones.matching import Match, calculate_matches
 from cross_bones.plotting import plot_astrometric_offsets, plot_beam_locations
 
@@ -599,8 +599,12 @@ def beam_wise_shifts(
     return catalogues
 
 
-def get_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Looking at per-beam shifts")
+def get_parser(
+    parent_parser: bool = False,
+) -> ArgumentParser:
+    parser = ArgumentParser(
+        description="Looking at per-beam shifts", add_help=not parent_parser
+    )
 
     parser.add_argument(
         "paths", nargs="+", type=Path, help="The beam wise catalogues to examine"

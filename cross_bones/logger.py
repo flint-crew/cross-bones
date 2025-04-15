@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import logging
-import sys
 from typing import ClassVar
+
+logging.captureWarnings(True)
+logger = logging.getLogger("cross_bones")
+logger.setLevel(logging.INFO)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
 
 
 class CustomFormatter(logging.Formatter):
@@ -30,10 +36,8 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-logging.captureWarnings(True)
-handler = logging.StreamHandler(sys.stdout)
-formatter = CustomFormatter()
-handler.setFormatter(formatter)
-logging.getLogger().addHandler(handler)
-logger = logging.getLogger("cross_bones")
-logger.setLevel(logging.INFO)
+# Add formatter to ch
+ch.setFormatter(CustomFormatter())
+
+# Add ch to logger
+logger.addHandler(ch)
