@@ -68,10 +68,7 @@ Discussions = "https://github.com/flint-crew/cross-bones/discussions"
 Changelog = "https://github.com/flint-crew/cross-bones/releases"
 
 [project.scripts]
-cross_bones = "cross_bones.align_catalogues:cli"
-unwise_cross_bones = "cross_bones.unwise_align_catalogues:cli"
-shift_stats = "cross_bones.shift_stats:cli"
-apply_cross_bones = "cross_bones.apply_shifts:cli"
+cross_bones = "cross_bones.cli:cli"
 
 [tool.hatch]
 version.source = "vcs"
