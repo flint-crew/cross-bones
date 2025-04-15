@@ -266,6 +266,7 @@ def get_offset_space(
     coords: list[SkyCoord] = []
 
     n_sources = len(cata_sky)
+    logger.debug(f"{catalogue.path}: {n_sources}")
     n_delta = n_sources * len(decs) * len(ras)
 
     broadcast_d_ra = np.zeros(n_delta)
@@ -331,6 +332,13 @@ def unwise_shifts(
     unwise_table_location: Path = Path("./"),
     min_snr: float = 10.0,
     min_iso: float = 36.0,
+    min_sources: int = 1,
+    window_iter: int = 7,
+    window_inc: float = 4.0,
+    window_width: float = 25.0,
+    window_delta: float = 5.0,
+    plot_all_windows: bool = False,
+    fill_value: float = np.nan,
 ) -> Path:
     if output_prefix:
         output_parent = Path(output_prefix).parent
@@ -346,6 +354,9 @@ def unwise_shifts(
     # if SBID and field name not provide, guess from first input catalogue:
     if sbid is None or field_name is None:
         sbid, field_name = guess_sbid_and_field_racs(catalogue_path=catalogue_paths[0])
+
+    if output_prefix is None:
+        output_prefix = f"SB{sbid}.{field_name}"
 
     beam_inf = field_beams[np.where(field_beams["FIELD_NAME"] == field_name)[0]]
     beam_skycoords = SkyCoord(
@@ -366,17 +377,41 @@ def unwise_shifts(
         unwise_table_location=unwise_table_location,
     )
 
-    window_incs = [10.0, 1.0, 0.1]
-    windows = [(wi, wi, wi, wi, wi / 10.0) for wi in window_incs]
+    # old defaults
+    # window_incs = [10.0, 1.0, 0.1]
+    # windows = [(wi, wi, wi, wi, wi / 10.0) for wi in window_incs]
+    windows = [(window_width, window_width, window_width, window_width, window_delta)]
+    for i in range(1, window_iter):
+        windows.append(
+            (
+                window_width / (i * window_inc),
+                window_width / (i * window_inc),
+                window_width / (i * window_inc),
+                window_width / (i * window_inc),
+                window_delta / (i * window_inc),
+            )
+        )
+
+    window0 = windows[0]
+    logger.debug(f"Windows: {windows}")
 
     # TODO add other stats??
-    ra_offsets = np.full((len(catalogues),), np.nan)
-    dec_offsets = np.full((len(catalogues),), np.nan)
+    ra_offsets = np.full((len(catalogues),), fill_value)
+    dec_offsets = np.full((len(catalogues),), fill_value)
 
-    all_offset_results = []
+    all_offset_results: list[OffsetGridSpace | None] = []
+    final_windows: list[tuple[float, float, float, float, float]] = []
 
     for beam in range(36):
         logger.debug(f"Working on beam {beam}")
+
+        if len(catalogues[beam].table) < min_sources:
+            logger.warning(
+                f"Beam {beam} does not have enough sources {len(catalogues[beam].table)} / {min_sources}"
+            )
+            final_windows.append(window0)
+            all_offset_results.append(None)
+            continue
 
         min_ra, min_dec = 0.0, 0.0
 
@@ -400,31 +435,38 @@ def unwise_shifts(
 
             min_ra, min_dec, min_sep = find_minimum_offset_space(offset_results)
 
-        # per window?
-        plot_offset_grid_space(
-            f"SB{sbid}.{field_name}_beam{beam:02d}.offset_grid.png",
-            offset_results,
-            window=window,
-        )
+            # per window?
+            if plot_all_windows:
+                plot_offset_grid_space(
+                    f"{output_prefix}_beam{beam:02d}_offset_grid_w{i}.png",
+                    offset_results,
+                    window=window,
+                )
 
         ra_offsets[beam] = min_ra
         dec_offsets[beam] = min_dec
 
         all_offset_results.append(offset_results)
+        final_windows.append(window)
+
+        if not plot_all_windows:
+            plot_offset_grid_space(
+                f"{output_prefix}_beam{beam:02d}_offset_grid.png",
+                offset_results,
+                window=window,
+            )
 
     plot_offsets_in_field(
         offset_results=all_offset_results,
-        fname=f"SB{sbid}.{field_name}_offset_grid.png",
+        fname=f"{output_prefix}_offset_grid.png",
+        windows=final_windows,
     )
 
     shift_table = Table(
         [catalogue_paths, ra_offsets, dec_offsets], names=["path", "d_ra", "d_dec"]
     )
 
-    if output_prefix is None:
-        outname = "SB{sbid}.{field_name}-unwise-shifts.csv"
-    else:
-        outname = output_prefix + "-unwise-shifts.csv"
+    outname = output_prefix + "-unwise-shifts.csv"
 
     output_path = Path(outname)
     shift_table.write(output_path, format="ascii.csv", overwrite=True)
@@ -514,6 +556,47 @@ def get_parser() -> ArgumentParser:
         help="Minimum separation between close neighbours in arcsec. Default 36",
     )
 
+    parser.add_argument(
+        "--sources-min",
+        default=1,
+        type=int,
+        help="Minimum number of sources (after filtering) per catalogue. Default 1",
+    )
+
+    parser.add_argument(
+        "--plot_all_windows",
+        action="store_true",
+        help="Switch to enable plotting offsets for all windows. Default is to only plot final window.",
+    )
+
+    parser.add_argument(
+        "--window_max_iterations",
+        type=int,
+        default=7,
+        help="Maximum number of window reduction iterations. Default 7",
+    )
+
+    parser.add_argument(
+        "--window_increment",
+        type=float,
+        default=4.0,
+        help="Value to de-increment the window by for each iteration (as 1/increment). Default 4",
+    )
+
+    parser.add_argument(
+        "--window_width",
+        type=float,
+        default=25.0,
+        help="Initial window width in arcsec. Reduces with `window_increment` for each iteration. Default 25",
+    )
+
+    parser.add_argument(
+        "--window_delta",
+        type=float,
+        default=5.0,
+        help="Initial window bin size in arcsec. Reduces with `window_increment` for each iteration. Default 5.",
+    )
+
     return parser
 
 
@@ -540,6 +623,12 @@ def cli() -> None:
         unwise_table_location=args.unwise_table_location,
         min_snr=args.snr_min,
         min_iso=args.iso_min,
+        min_sources=args.sources_min,
+        window_iter=args.window_max_iterations,
+        window_inc=args.window_increment,
+        window_width=args.window_width,
+        window_delta=args.window_delta,
+        plot_all_windows=args.plot_all_windows,
     )
 
     if args.report_statistics:
