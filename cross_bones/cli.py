@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from cross_bones import (
     __version__,
     align_catalogues,
+    align_catalogues_external,
     apply_shifts,
     shift_stats,
     unwise_align_catalogues,
@@ -29,12 +30,11 @@ def get_parser() -> ArgumentParser:
         help="Align catalogues using internal cross-matching",
         parents=[align_catalogues.get_parser(parent_parser=True)],
     )
-    # TODO: Add this
-    # subparsers.add_parser(
-    #     "external",
-    #     help="Align catalogues using external cross-matching",
-    #     parents=[...],
-    # )
+    subparsers.add_parser(
+        "external",
+        help="Align catalogues using external cross-matching",
+        parents=[align_catalogues_external.get_parser(parent_parser=True)],
+    )
     subparsers.add_parser(
         "apply",
         help="Apply offset shifts to images",
