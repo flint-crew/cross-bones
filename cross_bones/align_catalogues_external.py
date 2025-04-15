@@ -93,7 +93,12 @@ def _get_output_table_path(
 
 
 def _download_vizer_id_to_table(
-    sky_coord_center: SkyCoord, vizier_id: str, radius_deg: float, max_retries: int = 3
+    sky_coord_center: SkyCoord,
+    vizier_id: str,
+    radius_deg: float,
+    max_retries: int = 3,
+    ra_key: str = "RAJ2000",
+    dec_key: str = "DEJ2000",
 ) -> Table:
     """Internal method to download a Vizer catalogue around a region
 
@@ -115,7 +120,7 @@ def _download_vizer_id_to_table(
             logger.info(f"{attempt=} to download {vizier_id=}")
             vizier.Vizier.ROW_LIMIT = -1
             vizier_tables = vizier.Vizier(
-                columns=["RAJ2000", "DEJ2000"], row_limit=-1, timeout=720
+                columns=[ra_key, dec_key], row_limit=-1, timeout=720
             ).query_region(
                 sky_coord_center, catalog=vizier_id, width=radius_deg * u.deg
             )
@@ -149,6 +154,7 @@ def download_vizier_catalogue(
     beam_skycoords: list[SkyCoord],
     radius_deg: float = 5.0,
     external_table_location: str | Path = "./",
+    external_coord_keys: tuple[str, str] = ("RAJ2000", "DEJ2000"),
     vizier_id: str = "II/363/unwise",
     vizier_table_prefix: str | None = None,
 ) -> Table:
@@ -203,6 +209,8 @@ def download_vizier_catalogue(
                 sky_coord_center=beam_skycoord,
                 vizier_id=vizier_id,
                 radius_deg=radius_deg,
+                ra_key=external_coord_keys[0],
+                dec_key=external_coord_keys[1],
             )
             beam_cat.write(beam_cat_path, overwrite=False)
 
@@ -330,7 +338,6 @@ def external_shifts(
     output_prefix: str | None = None,
     sbid: int | None = None,
     field_name: str | None = None,
-    # beam_table: str = "closepack36_beams.fits",
     external_table_location: Path = Path("./"),
     external_table_vizier: str = "II/363/unwise",
     external_table_filename: str | None = None,
@@ -349,8 +356,6 @@ def external_shifts(
         output_parent = Path(output_prefix).parent
         output_parent.mkdir(exist_ok=True, parents=True)
 
-    # field_beams = Table.read(beam_table)
-
     # assuming things are named correctly.
     _catalogue_paths = [Path(path) for path in catalogue_paths]
     _catalogue_paths.sort()
@@ -362,11 +367,6 @@ def external_shifts(
 
     if output_prefix is None:
         output_prefix = f"SB{sbid}.{field_name}"
-
-    # beam_inf = field_beams[np.where(field_beams["FIELD_NAME"] == field_name)[0]]
-    # beam_skycoords = SkyCoord(
-    #     ra=beam_inf["RA_DEG"] * u.deg, dec=beam_inf["DEC_DEG"] * u.deg, frame="fk5"
-    # )
 
     logger.info(f"Will be processing {len(catalogue_paths)} catalogues")
     catalogues: Catalogues = load_catalogues(
@@ -385,11 +385,13 @@ def external_shifts(
             beam_skycoords=beam_skycoords,
             external_table_location=external_table_location,
             vizier_id=external_table_vizier,
+            external_coord_keys=external_coord_keys,
         )
     else:
         external_cat_name = external_table_location / external_table_filename
-        logger.info("Opening {external_cat_name}")
+        logger.info(f"Opening {external_cat_name}")
         external_field_cat = Table.read(external_cat_name)
+        logger.info(f"Opened {external_cat_name}")
 
     # TODO: error if units already in table?
     external_sky = SkyCoord(
@@ -549,13 +551,6 @@ def get_parser() -> ArgumentParser:
         help="ASKAP field name, if none provided it will assumed a RACS observation and guessed from the filename.",
     )
 
-    # parser.add_argument(
-    #     "--beam-table",
-    #     default="closepack36_beams.fits",
-    #     type=str,
-    #     help="Table of beam positions for a given ASKAP footprint. Default 'closepack36_beams.fits",
-    # )
-
     parser.add_argument(
         "--external-table-vizier",
         default="II/363/unwise",
@@ -582,7 +577,9 @@ def get_parser() -> ArgumentParser:
         nargs=2,
         default=["RAJ2000", "DEJ2000"],
         type=str,
-        help="External table RA, Dec column names. Default ('RAJ2000', 'DEJ2000')",
+        help="External table RA, Dec column names. Note these should correspond "
+        "to values in decimal degrees. For some VizieR tables this can be "
+        "ensured with '_RAJ2000' and '_DEJ2000'. Default ('RAJ2000', 'DEJ2000')",
     )
 
     parser.add_argument(
@@ -693,7 +690,6 @@ def cli() -> None:
         output_prefix=args.output_prefix,
         sbid=args.sbid,
         field_name=args.field_name,
-        # beam_table=args.beam_table,
         external_table_location=args.external_table_location,
         external_table_vizier=args.external_table_vizier,
         external_table_filename=args.external_table_filename,
