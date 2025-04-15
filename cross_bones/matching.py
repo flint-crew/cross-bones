@@ -7,6 +7,8 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord, search_around_sky
 from numpy.typing import NDArray
+from scipy.ndimage import minimum_filter
+from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
 
 from cross_bones.catalogue import Catalogue, make_sky_coords
 
@@ -100,7 +102,7 @@ def calculate_matches(
     )
 
 
-def find_minimum_offset_space(
+def find_minimum_offset_space_(
     offset_space: OffsetGridSpace,
 ) -> tuple[float, float, float]:
     """Search the input offset grid space to find the minimum position
@@ -109,7 +111,9 @@ def find_minimum_offset_space(
         offset_space (OffsetGridSpace): Results from the brute force grid search
 
     Returns:
-        tuple[float, float, float]: The minimum minimum delta RA and delta Dec and the corresponding separation
+        tuple[float, float, float, float, float]: The minimum minimum delta RA
+        and delta Dec and the corresponding separation along with the standard
+        deviation of all offsets in RA and Dec.
     """
     minimum_sep = None
     minimum_ra = None
@@ -127,3 +131,46 @@ def find_minimum_offset_space(
     assert minimum_sep is not None
 
     return minimum_ra, minimum_dec, minimum_sep
+
+
+def find_minimum_offset_space(
+    offset_space: OffsetGridSpace,
+) -> tuple[float, float, float, float]:
+    """Search the input offset grid space to find the minimum position
+
+    Args:
+        offset_space (OffsetGridSpace): Results from the brute force grid search
+
+    Returns:
+        tuple[float, float, float, float, float]: The minimum minimum delta RA
+        and delta Dec and the corresponding separation along with the standard
+        deviation of all offsets in RA and Dec.
+    """
+    minimum_sep = None
+    minimum_ra = None
+    minimum_dec = None
+
+    for dec, ra, sep in zip(
+        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+    ):
+        if minimum_sep is None or minimum_sep > sep:
+            minimum_sep = sep
+            minimum_ra = ra
+            minimum_dec = dec
+
+    # local minima algorithm modified from https://stackoverflow.com/a/3689710
+    image = offset_space.seps
+    neighborhood = generate_binary_structure(2, 2)
+    local_min = minimum_filter(image, footprint=neighborhood) == image
+    background = image == 0
+    eroded_background = binary_erosion(
+        background, structure=neighborhood, border_value=1
+    )
+    detected_peaks = local_min ^ eroded_background
+    n_minima = len(np.where(detected_peaks)[0])
+
+    assert minimum_dec is not None
+    assert minimum_ra is not None
+    assert minimum_sep is not None
+
+    return minimum_ra, minimum_dec, minimum_sep, n_minima

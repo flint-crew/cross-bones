@@ -120,9 +120,10 @@ disallow_incomplete_defs = false
 plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
-module = "cross_bones.*"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+module = ["cross_bones.*", "astropy.*", "matplotlib.*", "astroquery.*", "scipy.*"]
+ignore_missing_imports = true
 
 
 [[tool.mypy.overrides]]
