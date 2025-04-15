@@ -22,7 +22,7 @@ def get_parser() -> ArgumentParser:
         ArgumentParser: Constructed argument parser
     """
     parser = ArgumentParser(description="☠ cross-BONES ☠")
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(title="Available commands", dest="command")
     subparsers.required = True
 
     subparsers.add_parser(
@@ -71,6 +71,7 @@ def cli() -> None:
 
     command_map = {
         "internal": align_catalogues.cli,
+        "external": align_catalogues_external.cli,
         "apply": apply_shifts.cli,
         "stats": shift_stats.cli,
         "unwise": unwise_align_catalogues.cli,
