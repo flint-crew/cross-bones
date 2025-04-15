@@ -21,7 +21,7 @@ from cross_bones.catalogue import (
     TableKeys,
     load_catalogues,
 )
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 from cross_bones.matching import (
     OffsetGridSpace,
     find_minimum_offset_space,
@@ -528,8 +528,10 @@ def external_shifts(
     return output_path
 
 
-def get_parser() -> ArgumentParser:
-    parser = ArgumentParser(description="Looking at per-beam shifts")
+def get_parser(parent_parser: bool = False) -> ArgumentParser:
+    parser = ArgumentParser(
+        description="Looking at per-beam shifts", add_help=not parent_parser
+    )
 
     parser.add_argument(
         "paths", nargs="+", type=Path, help="The beam wise catalogues to examine"

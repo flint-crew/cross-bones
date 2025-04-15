@@ -7,7 +7,7 @@ from astropy.coordinates import (
 from astropy.io import fits
 from astropy.table import Table
 
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 
 
 def apply_shift_to_image(
