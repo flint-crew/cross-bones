@@ -124,7 +124,6 @@ module = "cross_bones.*"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
-
 [[tool.mypy.overrides]]
 module = ["astropy.*", "matplotlib.*", "astroquery.*"]
 ignore_missing_imports = true

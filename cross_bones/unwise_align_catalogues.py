@@ -398,12 +398,18 @@ def unwise_shifts(
     # TODO add other stats??
     ra_offsets = np.full((len(catalogues),), fill_value)
     dec_offsets = np.full((len(catalogues),), fill_value)
+    # ra_offsets_std = np.full((len(catalogues),), np.nan)
+    # dec_offsets_std = np.full((len(catalogues),), np.nan)
+    minima_offsets = np.full((len(catalogues),), 0, dtype=int)
+    n_sources = np.full((len(catalogues),), 0, dtype=int)
 
     all_offset_results: list[OffsetGridSpace | None] = []
     final_windows: list[tuple[float, float, float, float, float]] = []
 
     for beam in range(36):
         logger.debug(f"Working on beam {beam}")
+
+        n_sources[beam] = len(catalogues[beam].table)
 
         if len(catalogues[beam].table) < min_sources:
             logger.warning(
@@ -433,7 +439,9 @@ def unwise_shifts(
                 beam=beam,
             )
 
-            min_ra, min_dec, min_sep = find_minimum_offset_space(offset_results)
+            min_ra, min_dec, min_sep, n_minima = find_minimum_offset_space(
+                offset_results
+            )
 
             # per window?
             if plot_all_windows:
@@ -445,6 +453,9 @@ def unwise_shifts(
 
         ra_offsets[beam] = min_ra
         dec_offsets[beam] = min_dec
+        # ra_offsets_std[beam] = n_min_ra
+        # dec_offsets_std[beam] = n_min_dec
+        minima_offsets[beam] = n_minima
 
         all_offset_results.append(offset_results)
         final_windows.append(window)
@@ -463,7 +474,26 @@ def unwise_shifts(
     )
 
     shift_table = Table(
-        [catalogue_paths, ra_offsets, dec_offsets], names=["path", "d_ra", "d_dec"]
+        [
+            catalogue_paths,
+            np.arange(0, 36).astype(int),
+            ra_offsets,
+            dec_offsets,
+            # ra_offsets_std,
+            # dec_offsets_std,
+            minima_offsets,
+            n_sources,
+        ],
+        names=[
+            "path",
+            "beam",
+            "d_ra",
+            "d_dec",
+            # "d_ra_minima",
+            # "d_dec_minima",
+            "n_minima",
+            "n_sources",
+        ],
     )
 
     outname = output_prefix + "-unwise-shifts.csv"

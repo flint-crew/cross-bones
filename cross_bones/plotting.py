@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -13,6 +14,8 @@ from cross_bones.matching import (
     calculate_matches,
     find_minimum_offset_space,
 )
+
+mpl.rcParams["axes.formatter.useoffset"] = False
 
 
 def plot_astrometric_offsets(
@@ -110,7 +113,7 @@ def plot_offset_grid_space(
         offset_grid_space (OffsetGridSpace): The constructed offset surface
         window (tuple[float, float, float, float, float]): Details on the extent of the surface (min and max)
     """
-    min_ra, min_dec, min_sep = find_minimum_offset_space(offset_grid_space)
+    min_ra, min_dec, min_sep, n_minima = find_minimum_offset_space(offset_grid_space)
 
     fig, ax = plt.subplots(1, 1)
 
@@ -127,7 +130,7 @@ def plot_offset_grid_space(
     ax.set(
         xlabel="Delta RA (arcsec)",
         ylabel="Delta Dec (arcsec)",
-        title=f"Beam {offset_grid_space.beam} ({min_ra:.4f} {min_dec:.4f}) arcsec {offset_grid_space.n_sources} beam srcs",
+        title=f'Beam {offset_grid_space.beam} ({min_ra:.4f} {min_dec:.4f})" ({n_minima}) {offset_grid_space.n_sources} beam srcs',
     )
     _ = fig.colorbar(cim, label="Summed offsets (Degrees)")
 
@@ -175,6 +178,15 @@ def plot_offsets_in_field(
         )
 
         ax.set(title=f'({min_ra:.2f}, {min_dec:.2f})"')
+        ax.text(
+            0.05,
+            0.05,
+            f"{minimum_point[-1]}",
+            ha="left",
+            va="bottom",
+            transform=ax.transAxes,
+            color="white",
+        )
 
         ax.grid()
         ax.axhline(min_dec, ls="--", color="white")
