@@ -7,8 +7,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord, search_around_sky
 from numpy.typing import NDArray
-from scipy.ndimage import minimum_filter
-from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
+from scipy.ndimage import binary_erosion, generate_binary_structure, minimum_filter
 
 from cross_bones.catalogue import Catalogue, make_sky_coords
 
