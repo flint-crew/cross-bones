@@ -70,6 +70,7 @@ def cli() -> None:
     args = parser.parse_args()
 
     command_map = {
+        "external": align_catalogues_external.cli,
         "internal": align_catalogues.cli,
         "apply": apply_shifts.cli,
         "stats": shift_stats.cli,
