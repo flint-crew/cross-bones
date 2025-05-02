@@ -186,10 +186,14 @@ def load_catalogue(
     logger.debug(f"Loading {catalogue_path}")
     table = Table.read(catalogue_path)
 
-    table_mask = filter_table(
-        table=table, table_keys=table_keys, min_snr=min_snr, min_iso=min_iso
-    )
-    sub_table = table[table_mask]
+    if len(table) > 1:
+        table_mask = filter_table(
+            table=table, table_keys=table_keys, min_snr=min_snr, min_iso=min_iso
+        )
+        sub_table = table[table_mask]
+    else:
+        logger.warning(f"No rows in table {catalogue_path.name}")
+        sub_table = table
 
     sky_coords = make_sky_coords(
         table=sub_table, ra_key=table_keys.ra, dec_key=table_keys.dec
