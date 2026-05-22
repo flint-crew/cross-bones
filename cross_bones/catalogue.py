@@ -9,7 +9,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from numpy.typing import NDArray
 
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 
 Paths = tuple[Path, ...]
 
@@ -161,7 +161,7 @@ def filter_table(
     snr = table[table_keys.peak_flux] / table[table_keys.local_rms]
     snr_mask = snr > min_snr
 
-    return isolation_mask & ratio_mask & snr_mask
+    return np.asarray(isolation_mask & ratio_mask & snr_mask)
 
 
 def load_catalogue(
@@ -186,10 +186,14 @@ def load_catalogue(
     logger.debug(f"Loading {catalogue_path}")
     table = Table.read(catalogue_path)
 
-    table_mask = filter_table(
-        table=table, table_keys=table_keys, min_snr=min_snr, min_iso=min_iso
-    )
-    sub_table = table[table_mask]
+    if len(table) > 1:
+        table_mask = filter_table(
+            table=table, table_keys=table_keys, min_snr=min_snr, min_iso=min_iso
+        )
+        sub_table = table[table_mask]
+    else:
+        logger.warning(f"No rows in table {catalogue_path.name}")
+        sub_table = table
 
     sky_coords = make_sky_coords(
         table=sub_table, ra_key=table_keys.ra, dec_key=table_keys.dec
