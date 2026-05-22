@@ -248,7 +248,7 @@ def load_catalogues(
 def save_catalogue_shift_positions(
     catalogues: Catalogues, output_path: Path | None = None
 ) -> Path:
-    from pandas import DataFrame
+    from pandas import DataFrame  # noqa: PLC0415
 
     output_path = output_path if output_path else Path("shifts.csv")
 

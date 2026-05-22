@@ -124,7 +124,7 @@ def _download_vizer_id_to_table(
         except (ConnectionAbortedError, ConnectionError, ValueError) as e:
             logger.warning(f"Caught {e=}")
             logger.warning("Retry VizieR in 120s")
-            from time import sleep
+            from time import sleep  # noqa: PLC0415
 
             sleep(120)
             attempt += 1
@@ -167,7 +167,7 @@ def download_vizier_catalogue(
     """
 
     if vizier_table_prefix is None:
-        vizier_table_prefix = vizier_id.split("/")[-1]
+        vizier_table_prefix = vizier_id.rsplit("/", maxsplit=1)[-1]
 
     download_table_path = _get_output_table_path(
         output_dir=unwise_table_location,
@@ -440,9 +440,7 @@ def unwise_shifts(
                 beam=beam,
             )
 
-            min_ra, min_dec, min_sep, n_minima = find_minimum_offset_space(
-                offset_results
-            )
+            min_ra, min_dec, _, n_minima = find_minimum_offset_space(offset_results)
 
             # per window?
             if plot_all_windows:

@@ -208,7 +208,7 @@ def find_next_pair(catalogues: Catalogues) -> CataloguePair | None:
 
 
 def _select_random_index(max_index: int) -> int:
-    from random import randint
+    from random import randint  # noqa: PLC0415
 
     return randint(a=0, b=max_index - 1)
 
@@ -264,7 +264,7 @@ def add_offset_to_catalogue(
 
     # Trust no one????????
     # why an import here???????
-    from copy import deepcopy
+    from copy import deepcopy  # noqa: PLC0415
 
     new_cata = deepcopy(catalogue)
 

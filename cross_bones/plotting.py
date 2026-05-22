@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 
 from cross_bones.catalogue import Catalogue, Catalogues
 from cross_bones.matching import (
@@ -37,7 +38,7 @@ def plot_astrometric_offsets(
     std_ra, std_dec = src_matches.offset_std
 
     if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(3, 3))
+        _, ax = plt.subplots(1, 1, figsize=(3, 3))
 
     ax.scatter(src_matches.err_ra, src_matches.err_dec, color="red", s=1)
     ax.errorbar(mean_ra, mean_dec, xerr=std_ra, yerr=std_dec)
@@ -59,8 +60,8 @@ def plot_beam_locations(
     catalogues: Catalogues,
     catalogue_1: Catalogue | None = None,
     catalogue_2: Catalogue | None = None,
-    ax: plt.axes | None = None,
-) -> plt.axes:
+    ax: Axes | None = None,
+) -> Axes:
     """Plot the rough centre of the catalogues, and optionally present a pair of catalogues
 
     Args:
@@ -77,7 +78,7 @@ def plot_beam_locations(
     fixed = np.array([c.fixed for c in catalogues])
 
     if ax is None:
-        fig, ax = plt.subplots(1, 1)
+        _, ax = plt.subplots(1, 1)
     ax.scatter(ras[fixed], decs[fixed], color="red", marker="o")
     ax.scatter(ras[~fixed], decs[~fixed], color="green", marker="^")
 
@@ -113,7 +114,7 @@ def plot_offset_grid_space(
         offset_grid_space (OffsetGridSpace): The constructed offset surface
         window (tuple[float, float, float, float, float]): Details on the extent of the surface (min and max)
     """
-    min_ra, min_dec, min_sep, n_minima = find_minimum_offset_space(offset_grid_space)
+    min_ra, min_dec, _, n_minima = find_minimum_offset_space(offset_grid_space)
 
     fig, ax = plt.subplots(1, 1)
 
@@ -151,7 +152,7 @@ def plot_offsets_in_field(
         offset_results (list[OffsetGridSpace]): The characterised surfaces to plot
         fname (str | Path): The output file name
     """
-    from math import ceil
+    from math import ceil  # noqa: PLC0415
 
     num_columns = ceil(len(offset_results) ** 0.5)
     num_rows = ceil(len(offset_results) / num_columns)
