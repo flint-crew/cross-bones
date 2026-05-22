@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Any
 
 import astropy.units as u
 import numpy as np
@@ -30,7 +31,7 @@ from cross_bones.plotting import plot_offset_grid_space, plot_offsets_in_field
 from cross_bones.shift_stats import compare_original_to_fitted
 
 Paths = tuple[Path, ...]
-MatchMatrix: TypeAlias = NDArray[int]
+MatchMatrix: TypeAlias = NDArray[np.int_]
 
 
 def guess_sbid_and_field_racs(
@@ -218,7 +219,8 @@ def download_vizier_catalogue(
 
 
 def add_offset_to_coords_skyframeoffset(
-    sky_coords: SkyCoord, offset: tuple[float, float]
+    sky_coords: SkyCoord,
+    offset: tuple[float | NDArray[np.floating[Any]], float | NDArray[np.floating[Any]]],
 ) -> SkyCoord:
     """Add angular offsets to a ``SkyCoord`` object.
 

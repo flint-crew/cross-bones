@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
+from typing import TypeAlias
 
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -15,7 +16,6 @@ from astropy.coordinates import (
     search_around_sky,
 )
 from numpy.typing import NDArray
-from typing_extensions import TypeAlias
 
 from cross_bones.catalogue import (
     Catalogue,
@@ -30,8 +30,8 @@ from cross_bones.logger import logger
 from cross_bones.matching import Match, calculate_matches
 from cross_bones.plotting import plot_astrometric_offsets, plot_beam_locations
 
-Paths = tuple[Path, ...]
-MatchMatrix: TypeAlias = NDArray[int]
+Paths: TypeAlias = tuple[Path, ...]
+MatchMatrix: TypeAlias = NDArray[np.int_]
 
 
 @dataclass
@@ -66,7 +66,7 @@ def make_catalogue_matrix(catalogues: Catalogues) -> MatchMatrix:
         MatchMatrix: Matrix of matches
     """
     no_catas = len(catalogues)
-    match_matrix: MatchMatrix = np.zeros((no_catas, no_catas))
+    match_matrix: MatchMatrix = np.zeros((no_catas, no_catas), dtype=int)
 
     combos = list(combinations(list(range(len(catalogues))), 2))
 
@@ -113,7 +113,7 @@ def plot_match_matrix(matrix: MatchMatrix, output_path: None | Path = None) -> P
 
 def make_and_plot_match_matrix(
     catalogues: Catalogues, plot_path: None | Path = None
-) -> tuple[NDArray[float], Path]:
+) -> tuple[MatchMatrix, Path]:
     """Run the making and plotting of the match matrix"""
 
     matrix = make_catalogue_matrix(catalogues=catalogues)

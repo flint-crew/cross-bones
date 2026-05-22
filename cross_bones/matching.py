@@ -32,18 +32,18 @@ class Match:
     """Mean of the offset in arcseconds in the RA and Declination directions"""
     offset_std: tuple[float, float]
     """Std of the offset in arcseconds in the RA and Declination directions"""
-    err_ra: NDArray[float]
+    err_ra: NDArray[np.floating[Any]]
     """Difference in RA coordinates between matches"""
-    err_dec: NDArray[float]
+    err_dec: NDArray[np.floating[Any]]
     """Different in Dec coordinates between matches"""
 
 
 @dataclass
 class OffsetGridSpace:
-    ra_offsets: NDArray[float]
-    dec_offsets: NDArray[float]
+    ra_offsets: NDArray[np.floating[Any]]
+    dec_offsets: NDArray[np.floating[Any]]
     beam: int
-    seps: NDArray[float]
+    seps: NDArray[np.floating[Any]]
     n_sources: int
 
 
@@ -129,7 +129,7 @@ def find_minimum_offset_space_(
     assert minimum_ra is not None
     assert minimum_sep is not None
 
-    return minimum_ra, minimum_dec, minimum_sep
+    return minimum_ra, minimum_dec, float(minimum_sep)
 
 
 def find_minimum_offset_space(
@@ -172,4 +172,4 @@ def find_minimum_offset_space(
     assert minimum_ra is not None
     assert minimum_sep is not None
 
-    return minimum_ra, minimum_dec, minimum_sep, n_minima
+    return minimum_ra, minimum_dec, float(minimum_sep), n_minima

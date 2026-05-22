@@ -161,7 +161,7 @@ def filter_table(
     snr = table[table_keys.peak_flux] / table[table_keys.local_rms]
     snr_mask = snr > min_snr
 
-    return isolation_mask & ratio_mask & snr_mask
+    return np.asarray(isolation_mask & ratio_mask & snr_mask)
 
 
 def load_catalogue(
