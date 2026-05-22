@@ -15,7 +15,7 @@ from cross_bones.catalogue import (
     guess_sbid_and_field_racs,
     load_catalogues,
 )
-from cross_bones.logging import logger
+from cross_bones.logger import logger
 from cross_bones.matching import calculate_matches
 
 Paths = tuple[Path, ...]
@@ -270,8 +270,10 @@ def compare_original_to_fitted(
     return (r_original, r_fitted)
 
 
-def get_parser() -> ArgumentParser:
-    parser = ArgumentParser()
+def get_parser(parent_parser: bool = False) -> ArgumentParser:
+    parser = ArgumentParser(
+        add_help=not parent_parser,
+    )
     parser.add_argument(
         "offset_file",
         type=str,

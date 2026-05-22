@@ -7,6 +7,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord, search_around_sky
 from numpy.typing import NDArray
+from scipy.ndimage import binary_erosion, generate_binary_structure, minimum_filter
 
 from cross_bones.catalogue import Catalogue, make_sky_coords
 
@@ -31,18 +32,18 @@ class Match:
     """Mean of the offset in arcseconds in the RA and Declination directions"""
     offset_std: tuple[float, float]
     """Std of the offset in arcseconds in the RA and Declination directions"""
-    err_ra: NDArray[float]
+    err_ra: NDArray[np.floating[Any]]
     """Difference in RA coordinates between matches"""
-    err_dec: NDArray[float]
+    err_dec: NDArray[np.floating[Any]]
     """Different in Dec coordinates between matches"""
 
 
 @dataclass
 class OffsetGridSpace:
-    ra_offsets: NDArray[float]
-    dec_offsets: NDArray[float]
+    ra_offsets: NDArray[np.floating[Any]]
+    dec_offsets: NDArray[np.floating[Any]]
     beam: int
-    seps: NDArray[float]
+    seps: NDArray[np.floating[Any]]
     n_sources: int
 
 
@@ -100,7 +101,7 @@ def calculate_matches(
     )
 
 
-def find_minimum_offset_space(
+def find_minimum_offset_space_(
     offset_space: OffsetGridSpace,
 ) -> tuple[float, float, float]:
     """Search the input offset grid space to find the minimum position
@@ -109,13 +110,18 @@ def find_minimum_offset_space(
         offset_space (OffsetGridSpace): Results from the brute force grid search
 
     Returns:
-        tuple[float, float, float]: The minimum minimum delta RA and delta Dec and the corresponding separation
+        tuple[float, float, float, float, float]: The minimum minimum delta RA
+        and delta Dec and the corresponding separation along with the standard
+        deviation of all offsets in RA and Dec.
     """
     minimum_sep = None
     minimum_ra = None
     minimum_dec = None
     for dec, ra, sep in zip(
-        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+        offset_space.dec_offsets,
+        offset_space.ra_offsets,
+        offset_space.seps.flatten(),
+        strict=False,
     ):
         if minimum_sep is None or minimum_sep > sep:
             minimum_sep = sep
@@ -126,4 +132,50 @@ def find_minimum_offset_space(
     assert minimum_ra is not None
     assert minimum_sep is not None
 
-    return minimum_ra, minimum_dec, minimum_sep
+    return minimum_ra, minimum_dec, float(minimum_sep)
+
+
+def find_minimum_offset_space(
+    offset_space: OffsetGridSpace,
+) -> tuple[float, float, float, float]:
+    """Search the input offset grid space to find the minimum position
+
+    Args:
+        offset_space (OffsetGridSpace): Results from the brute force grid search
+
+    Returns:
+        tuple[float, float, float, float, float]: The minimum minimum delta RA
+        and delta Dec and the corresponding separation along with the standard
+        deviation of all offsets in RA and Dec.
+    """
+    minimum_sep = None
+    minimum_ra = None
+    minimum_dec = None
+
+    for dec, ra, sep in zip(
+        offset_space.dec_offsets,
+        offset_space.ra_offsets,
+        offset_space.seps.flatten(),
+        strict=False,
+    ):
+        if minimum_sep is None or minimum_sep > sep:
+            minimum_sep = sep
+            minimum_ra = ra
+            minimum_dec = dec
+
+    # local minima algorithm modified from https://stackoverflow.com/a/3689710
+    image = offset_space.seps
+    neighborhood = generate_binary_structure(2, 2)
+    local_min = minimum_filter(image, footprint=neighborhood) == image
+    background = image == 0
+    eroded_background = binary_erosion(
+        background, structure=neighborhood, border_value=1
+    )
+    detected_peaks = local_min ^ eroded_background
+    n_minima = len(np.where(detected_peaks)[0])
+
+    assert minimum_dec is not None
+    assert minimum_ra is not None
+    assert minimum_sep is not None
+
+    return minimum_ra, minimum_dec, float(minimum_sep), n_minima
