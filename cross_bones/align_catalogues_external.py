@@ -173,7 +173,7 @@ def download_vizier_catalogue(
     """
 
     if vizier_table_prefix is None:
-        vizier_table_prefix = vizier_id.split("/")[-1]
+        vizier_table_prefix = vizier_id.rsplit("/", maxsplit=1)[-1]
 
     download_table_path = _get_output_table_path(
         output_dir=external_table_location,
