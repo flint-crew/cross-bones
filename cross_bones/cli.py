@@ -81,7 +81,7 @@ def cli() -> None:
     if args.command in command_map:
         # Modify sys.argv to make it look like the command was called directly
         # This is because your cli() functions likely parse args themselves
-        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        sys.argv = [sys.argv[0], *sys.argv[2:]]
         command_map[args.command]()
     else:
         parser.print_help()
