@@ -29,7 +29,7 @@ from cross_bones.matching import (
 from cross_bones.plotting import plot_offset_grid_space, plot_offsets_in_field
 from cross_bones.shift_stats import compare_original_to_fitted
 
-Paths = tuple[Path, ...]
+Paths: TypeAlias = tuple[Path, ...]
 MatchMatrix: TypeAlias = NDArray[np.int_]
 
 
@@ -93,7 +93,12 @@ def _get_output_table_path(
 
 
 def _download_vizer_id_to_table(
-    sky_coord_center: SkyCoord, vizier_id: str, radius_deg: float, max_retries: int = 3
+    sky_coord_center: SkyCoord,
+    vizier_id: str,
+    radius_deg: float,
+    max_retries: int = 3,
+    ra_key: str = "RAJ2000",
+    dec_key: str = "DEJ2000",
 ) -> Table:
     """Internal method to download a Vizer catalogue around a region
 
@@ -115,7 +120,7 @@ def _download_vizer_id_to_table(
             logger.info(f"{attempt=} to download {vizier_id=}")
             vizier.Vizier.ROW_LIMIT = -1
             vizier_tables = vizier.Vizier(
-                columns=["RAJ2000", "DEJ2000"], row_limit=-1, timeout=720
+                columns=[ra_key, dec_key], row_limit=-1, timeout=720
             ).query_region(
                 sky_coord_center, catalog=vizier_id, width=radius_deg * u.deg
             )
@@ -148,7 +153,8 @@ def download_vizier_catalogue(
     field_name: str,
     beam_skycoords: list[SkyCoord],
     radius_deg: float = 5.0,
-    unwise_table_location: str | Path = "./",
+    external_table_location: str | Path = "./",
+    external_coord_keys: tuple[str, str] = ("RAJ2000", "DEJ2000"),
     vizier_id: str = "II/363/unwise",
     vizier_table_prefix: str | None = None,
 ) -> Table:
@@ -159,7 +165,7 @@ def download_vizier_catalogue(
         field_name (str): The field name of the region being downloaded.
         beam_skycoords (list[SkyCoord]): A collection of coordinates defining a region
         radius_deg (float, optional): The size of the region to download. Defaults to 5.0.
-        unwise_table_location (str | Path, optional): Location of the path of the output table. Defaults to "./".
+        external_table_location (str | Path, optional): Location of the path of the output table. Defaults to "./".
         vizier_id (str, optional): The vizier catalogue ID to download. Defaults to "II/363/unwise".
 
     Returns:
@@ -170,7 +176,7 @@ def download_vizier_catalogue(
         vizier_table_prefix = vizier_id.split("/")[-1]
 
     download_table_path = _get_output_table_path(
-        output_dir=unwise_table_location,
+        output_dir=external_table_location,
         output_name=field_name,
         name_prefix=vizier_table_prefix,
     )
@@ -191,7 +197,8 @@ def download_vizier_catalogue(
         )
 
         beam_cat_path = _get_output_table_path(
-            output_dir=unwise_table_location, output_name=f"{field_name}_{beam_idx:02d}"
+            output_dir=external_table_location,
+            output_name=f"{field_name}_{beam_idx:02d}",
         )
 
         if beam_cat_path.exists():
@@ -202,6 +209,8 @@ def download_vizier_catalogue(
                 sky_coord_center=beam_skycoord,
                 vizier_id=vizier_id,
                 radius_deg=radius_deg,
+                ra_key=external_coord_keys[0],
+                dec_key=external_coord_keys[1],
             )
             beam_cat.write(beam_cat_path, overwrite=False)
 
@@ -238,14 +247,15 @@ def add_offset_to_coords_skyframeoffset(
 
 def get_offset_space(
     catalogue: Catalogue,
-    unwise_table: Table,
+    # external_table: Table
+    external_sky: SkyCoord,
     window: tuple[float, float, float, float, float],
     beam: int | None = None,
 ) -> OffsetGridSpace:
     # TODO create skycoord object earlier, and pass between beams
-    unwise_sky = SkyCoord(
-        ra=unwise_table["RAJ2000"], dec=unwise_table["DEJ2000"], unit=(u.deg, u.deg)
-    )
+    # external_sky = SkyCoord(
+    #     ra=external_table["RAJ2000"], dec=external_table["DEJ2000"], unit=(u.deg, u.deg)
+    # )
 
     shifted_table = catalogue.table.copy()
     cata_sky = SkyCoord(
@@ -289,7 +299,7 @@ def get_offset_space(
     )
 
     matches = match_coordinates_sky(
-        shifted_sky, unwise_sky, nthneighbor=1, storekdtree=True
+        shifted_sky, external_sky, nthneighbor=1, storekdtree=True
     )
 
     accumulated_seps = np.zeros((dec_bins, ra_bins))
@@ -323,14 +333,16 @@ def get_offset_space(
     )
 
 
-def unwise_shifts(
+def external_shifts(
     catalogue_paths: Paths,
     table_keys: TableKeys,
     output_prefix: str | None = None,
     sbid: int | None = None,
     field_name: str | None = None,
-    beam_table: str = "closepack36_beams.fits",
-    unwise_table_location: Path = Path("./"),
+    external_table_location: Path = Path("./"),
+    external_table_vizier: str = "II/363/unwise",
+    external_table_filename: str | None = None,
+    external_coord_keys: tuple[str, str] = ("RAJ2000", "DEJ2000"),
     min_snr: float = 10.0,
     min_iso: float = 36.0,
     min_sources: int = 1,
@@ -345,8 +357,6 @@ def unwise_shifts(
         output_parent = Path(output_prefix).parent
         output_parent.mkdir(exist_ok=True, parents=True)
 
-    field_beams = Table.read(beam_table)
-
     # assuming things are named correctly.
     _catalogue_paths = [Path(path) for path in catalogue_paths]
     _catalogue_paths.sort()
@@ -359,11 +369,6 @@ def unwise_shifts(
     if output_prefix is None:
         output_prefix = f"SB{sbid}.{field_name}"
 
-    beam_inf = field_beams[np.where(field_beams["FIELD_NAME"] == field_name)[0]]
-    beam_skycoords = SkyCoord(
-        ra=beam_inf["RA_DEG"] * u.deg, dec=beam_inf["DEC_DEG"] * u.deg, frame="fk5"
-    )
-
     logger.info(f"Will be processing {len(catalogue_paths)} catalogues")
     catalogues: Catalogues = load_catalogues(
         catalogue_paths=catalogue_paths,
@@ -372,10 +377,28 @@ def unwise_shifts(
         min_snr=min_snr,
     )
 
-    unwise_field_cat = download_vizier_catalogue(
-        field_name=field_name,
-        beam_skycoords=beam_skycoords,
-        unwise_table_location=unwise_table_location,
+    # approximate center, will be bad if not many sources
+    beam_skycoords = [cat.center for cat in catalogues]
+
+    if external_table_filename is None:
+        external_field_cat = download_vizier_catalogue(
+            field_name=field_name,
+            beam_skycoords=beam_skycoords,
+            external_table_location=external_table_location,
+            vizier_id=external_table_vizier,
+            external_coord_keys=external_coord_keys,
+        )
+    else:
+        external_cat_name = external_table_location / external_table_filename
+        logger.info(f"Opening {external_cat_name}")
+        external_field_cat = Table.read(external_cat_name)
+        logger.info(f"Opened {external_cat_name}")
+
+    # TODO: error if units already in table?
+    external_sky = SkyCoord(
+        ra=external_field_cat[external_coord_keys[0]],
+        dec=external_field_cat[external_coord_keys[1]],
+        unit=(u.deg, u.deg),
     )
 
     # old defaults
@@ -435,7 +458,8 @@ def unwise_shifts(
 
             offset_results: OffsetGridSpace = get_offset_space(
                 catalogue=catalogues[beam],
-                unwise_table=unwise_field_cat,
+                # external_table=external_field_cat,
+                external_sky=external_sky,
                 window=window,
                 beam=beam,
             )
@@ -497,7 +521,7 @@ def unwise_shifts(
         ],
     )
 
-    outname = output_prefix + "-unwise-shifts.csv"
+    outname = output_prefix + "-external-shifts.csv"
 
     output_path = Path(outname)
     shift_table.write(output_path, format="ascii.csv", overwrite=True)
@@ -507,8 +531,7 @@ def unwise_shifts(
 
 def get_parser(parent_parser: bool = False) -> ArgumentParser:
     parser = ArgumentParser(
-        description="Looking at per-beam shifts",
-        add_help=not parent_parser,
+        description="Looking at per-beam shifts", add_help=not parent_parser
     )
 
     parser.add_argument(
@@ -532,17 +555,34 @@ def get_parser(parent_parser: bool = False) -> ArgumentParser:
     )
 
     parser.add_argument(
-        "--beam-table",
-        default="closepack36_beams.fits",
+        "--external-table-vizier",
+        default="II/363/unwise",
         type=str,
-        help="Table of beam positions for a given ASKAP footprint. Default 'closepack36_beams.fits",
+        help="External table VizieR name. Default 'II/363/unwise'",
     )
 
     parser.add_argument(
-        "--unwise-table-location",
+        "--external-table-location",
         default=Path("./"),
         type=Path,
-        help="Directory of the unWISE tables. Default './'",
+        help="Directory of the external tables. Default './'",
+    )
+
+    parser.add_argument(
+        "--external-table-filename",
+        default=None,
+        type=Path,
+        help="External table filename if not pulling from VizieR. Default None",
+    )
+
+    parser.add_argument(
+        "--external-coord-keys",
+        nargs=2,
+        default=["RAJ2000", "DEJ2000"],
+        type=str,
+        help="External table RA, Dec column names. Note these should correspond "
+        "to values in decimal degrees. For some VizieR tables this can be "
+        "ensured with '_RAJ2000' and '_DEJ2000'. Default ('RAJ2000', 'DEJ2000')",
     )
 
     parser.add_argument(
@@ -563,7 +603,7 @@ def get_parser(parent_parser: bool = False) -> ArgumentParser:
         nargs=2,
         default=["ra", "dec"],
         type=str,
-        help="Column names/keys in tables for (ra, dec). [Default ('ra', 'dec')]",
+        help="Table RA, Dec column names. Default ('ra', 'dec')",
     )
     parser.add_argument(
         "--flux-keys",
@@ -598,34 +638,34 @@ def get_parser(parent_parser: bool = False) -> ArgumentParser:
     )
 
     parser.add_argument(
-        "--plot_all_windows",
+        "--plot-all-windows",
         action="store_true",
         help="Switch to enable plotting offsets for all windows. Default is to only plot final window.",
     )
 
     parser.add_argument(
-        "--window_max_iterations",
+        "--window-max-iterations",
         type=int,
         default=7,
         help="Maximum number of window reduction iterations. Default 7",
     )
 
     parser.add_argument(
-        "--window_increment",
+        "--window-increment",
         type=float,
         default=4.0,
         help="Value to de-increment the window by for each iteration (as 1/increment). Default 4",
     )
 
     parser.add_argument(
-        "--window_width",
+        "--window-width",
         type=float,
         default=25.0,
         help="Initial window width in arcsec. Reduces with `window_increment` for each iteration. Default 25",
     )
 
     parser.add_argument(
-        "--window_delta",
+        "--window-delta",
         type=float,
         default=5.0,
         help="Initial window bin size in arcsec. Reduces with `window_increment` for each iteration. Default 5.",
@@ -647,14 +687,16 @@ def cli() -> None:
         local_rms=args.rms_key,
     )
 
-    output_filename = unwise_shifts(
+    output_filename = external_shifts(
         catalogue_paths=args.paths,
         table_keys=table_keys,
         output_prefix=args.output_prefix,
         sbid=args.sbid,
         field_name=args.field_name,
-        beam_table=args.beam_table,
-        unwise_table_location=args.unwise_table_location,
+        external_table_location=args.external_table_location,
+        external_table_vizier=args.external_table_vizier,
+        external_table_filename=args.external_table_filename,
+        external_coord_keys=args.external_coord_keys,
         min_snr=args.snr_min,
         min_iso=args.iso_min,
         min_sources=args.sources_min,

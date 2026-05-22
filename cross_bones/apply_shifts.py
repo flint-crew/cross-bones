@@ -5,8 +5,10 @@ from argparse import ArgumentParser
 from cross_bones.images import shift_image_collections
 
 
-def get_parser() -> ArgumentParser:
-    parser = ArgumentParser()
+def get_parser(parent_parser: bool = False) -> ArgumentParser:
+    parser = ArgumentParser(
+        add_help=not parent_parser,
+    )
 
     parser.add_argument(
         "offset_file",
