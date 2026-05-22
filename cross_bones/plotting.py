@@ -162,7 +162,9 @@ def plot_offsets_in_field(
 
     fig, axes = plt.subplots(num_columns, num_rows, figsize=(10, 10))
 
-    for offset_result, ax, window in zip(offset_results, axes.flatten()[::-1], windows):
+    for offset_result, ax, window in zip(
+        offset_results, axes.flatten()[::-1], windows, strict=False
+    ):
         if offset_result is None:
             continue
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 import astropy.units as u
 import numpy as np
@@ -14,7 +14,6 @@ from astropy.coordinates import (
 from astropy.table import Table, unique, vstack
 from astroquery import vizier
 from numpy.typing import NDArray
-from typing_extensions import TypeAlias
 
 from cross_bones.catalogue import (
     Catalogue,

@@ -497,7 +497,7 @@ def plot_top_pairs_in_matrix(
     unravel_order = np.unravel_index(order, match_matrix.shape)
 
     output_paths = []
-    for idx, catalogue_pair in enumerate(zip(*unravel_order)):
+    for idx, catalogue_pair in enumerate(zip(*unravel_order, strict=False)):
         if idx + 1 > top_pairs:
             break
 

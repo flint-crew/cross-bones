@@ -118,7 +118,10 @@ def find_minimum_offset_space_(
     minimum_ra = None
     minimum_dec = None
     for dec, ra, sep in zip(
-        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+        offset_space.dec_offsets,
+        offset_space.ra_offsets,
+        offset_space.seps.flatten(),
+        strict=False,
     ):
         if minimum_sep is None or minimum_sep > sep:
             minimum_sep = sep
@@ -150,7 +153,10 @@ def find_minimum_offset_space(
     minimum_dec = None
 
     for dec, ra, sep in zip(
-        offset_space.dec_offsets, offset_space.ra_offsets, offset_space.seps.flatten()
+        offset_space.dec_offsets,
+        offset_space.ra_offsets,
+        offset_space.seps.flatten(),
+        strict=False,
     ):
         if minimum_sep is None or minimum_sep > sep:
             minimum_sep = sep
