@@ -135,7 +135,7 @@ def set_seed_catalogues(
         force_idx (int | None): Manual selection if not None
 
     Returns:
-        Catalogues: The same as the input catalouges, with the exception of a fixed beam
+        Catalogues: The same as the input catalogues, with the exception of a fixed beam
     """
 
     if force_idx is None:
